@@ -29,6 +29,7 @@ export const baseSchemas = {
     .optional(),
   includeDetails: z.boolean().describe("Include detailed metrics and recommendations").default(false),
   threshold: z.number().describe("Score threshold (0-100)").min(0).max(100).optional(),
+  forceFresh: z.boolean().describe("Bypass cache and force a fresh Lighthouse run").default(false),
 };
 
 // Composed schemas for each tool (wrapped in z.object() for proper type inference)
@@ -37,6 +38,7 @@ export const auditParamsSchema = z.object({
   categories: baseSchemas.categories,
   device: baseSchemas.device,
   throttling: baseSchemas.throttling,
+  forceFresh: baseSchemas.forceFresh,
   includeDetails: z.boolean().describe("Include detailed per-audit breakdowns for each category").default(false),
   focusCategory: z
     .enum(["performance", "accessibility", "best-practices", "seo", "agentic-browsing"])
@@ -47,6 +49,7 @@ export const auditParamsSchema = z.object({
 export const performanceSchema = z.object({
   url: baseSchemas.url,
   device: baseSchemas.device,
+  forceFresh: baseSchemas.forceFresh,
   budget: z
     .object({
       performanceScore: baseSchemas.threshold,
@@ -63,6 +66,7 @@ export const performanceSchema = z.object({
 export const coreWebVitalsSchema = z.object({
   url: baseSchemas.url,
   device: baseSchemas.device,
+  forceFresh: baseSchemas.forceFresh,
   includeDetails: baseSchemas.includeDetails,
   threshold: z
     .object({
@@ -77,12 +81,14 @@ export const compareDevicesSchema = z.object({
   url: baseSchemas.url,
   categories: baseSchemas.categories,
   throttling: baseSchemas.throttling,
+  forceFresh: baseSchemas.forceFresh,
   includeDetails: baseSchemas.includeDetails,
 });
 
 export const resourceAnalysisSchema = z.object({
   url: baseSchemas.url,
   device: baseSchemas.device,
+  forceFresh: baseSchemas.forceFresh,
   resourceTypes: z
     .array(z.enum(["images", "javascript", "css", "fonts", "other"]))
     .optional()
@@ -93,6 +99,7 @@ export const resourceAnalysisSchema = z.object({
 export const lcpOpportunitiesSchema = z.object({
   url: baseSchemas.url,
   device: baseSchemas.device,
+  forceFresh: baseSchemas.forceFresh,
   includeDetails: baseSchemas.includeDetails,
   threshold: z.number().min(0).optional().describe("LCP threshold in seconds (default: 2.5)"),
 });
@@ -100,11 +107,13 @@ export const lcpOpportunitiesSchema = z.object({
 export const unusedJavaScriptSchema = z.object({
   url: baseSchemas.url,
   device: baseSchemas.device,
+  forceFresh: baseSchemas.forceFresh,
   minBytes: z.number().min(0).default(2048).describe("Minimum unused bytes to report (default: 2048)"),
 });
 
 export const securityAuditSchema = z.object({
   url: baseSchemas.url,
+  forceFresh: baseSchemas.forceFresh,
   checks: z
     .array(z.enum(["https", "mixed-content", "hsts", "csp"]))
     .optional()
@@ -116,5 +125,6 @@ export const securityAuditSchema = z.object({
 export const agenticAuditSchema = z.object({
   url: baseSchemas.url,
   device: baseSchemas.device,
+  forceFresh: baseSchemas.forceFresh,
   includeDetails: baseSchemas.includeDetails,
 });

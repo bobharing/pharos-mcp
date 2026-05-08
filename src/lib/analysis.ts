@@ -6,8 +6,9 @@ export async function findUnusedJavaScript(
   url: string,
   device: "desktop" | "mobile" = "desktop",
   minBytes = DEFAULTS.MIN_UNUSED_JS_BYTES,
+  options?: { forceFresh?: boolean },
 ) {
-  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device);
+  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, false, options);
   const { lhr } = runnerResult;
 
   const unusedJsAudit = lhr.audits["unused-javascript"];
@@ -75,8 +76,9 @@ export async function analyzeResources(
   device: "desktop" | "mobile" = "desktop",
   resourceTypes?: string[],
   minSize = DEFAULTS.MIN_RESOURCE_SIZE_KB,
+  options?: { forceFresh?: boolean },
 ) {
-  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device);
+  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, false, options);
   const { lhr } = runnerResult;
 
   // Get resource summary from network-requests audit
@@ -138,8 +140,8 @@ export async function analyzeResources(
 }
 
 // Helper function to get security audit
-export async function getSecurityAudit(url: string, checks?: string[]) {
-  const runnerResult = await runRawLighthouseAudit(url, ["best-practices"]);
+export async function getSecurityAudit(url: string, checks?: string[], options?: { forceFresh?: boolean }) {
+  const runnerResult = await runRawLighthouseAudit(url, ["best-practices"], "desktop", false, options);
   const { lhr } = runnerResult;
 
   // Maps user-facing check names to the Lighthouse audit IDs they correspond to.
@@ -193,8 +195,8 @@ const AGENTIC_AUDIT_IDS = [
 ] as const;
 
 // Helper function to run the agentic-browsing audit
-export async function getAgenticAudit(url: string, device: "desktop" | "mobile" = "desktop") {
-  const runnerResult = await runRawLighthouseAudit(url, ["agentic-browsing"], device);
+export async function getAgenticAudit(url: string, device: "desktop" | "mobile" = "desktop", options?: { forceFresh?: boolean }) {
+  const runnerResult = await runRawLighthouseAudit(url, ["agentic-browsing"], device, false, options);
   const { lhr } = runnerResult;
 
   const auditResults = AGENTIC_AUDIT_IDS.map((auditId) => {

@@ -49,7 +49,7 @@ describe("lighthouse-analysis", () => {
 
       const result = await findUnusedJavaScript(mockUrl, "desktop", 1000); // Lower threshold to include both
 
-      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["performance"], "desktop");
+      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["performance"], "desktop", false, undefined);
       expect(result).toEqual({
         url: mockUrl,
         device: "desktop",
@@ -192,7 +192,7 @@ describe("lighthouse-analysis", () => {
 
       const result = await analyzeResources(mockUrl, "desktop", ["images", "javascript"], 10);
 
-      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["performance"], "desktop");
+      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["performance"], "desktop", false, undefined);
       expect(result.resources).toHaveLength(2); // Only image and javascript
       expect(result.summary).toHaveProperty("images");
       expect(result.summary).toHaveProperty("javascript");
@@ -305,7 +305,7 @@ describe("lighthouse-analysis", () => {
 
       const result = await getSecurityAudit(mockUrl);
 
-      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["best-practices"]);
+      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["best-practices"], "desktop", false, undefined);
       expect(result.audits).toHaveLength(SECURITY_AUDITS.length);
       expect(result.overallScore).toBeGreaterThan(0);
       expect(result.overallScore).toBeLessThanOrEqual(100);

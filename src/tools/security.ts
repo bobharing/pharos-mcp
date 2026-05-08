@@ -13,9 +13,9 @@ export function registerSecurityTools(server: McpServer) {
       inputSchema: securityAuditSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, checks }) => {
+    async ({ url, forceFresh, checks }) => {
       try {
-        const result = await getSecurityAudit(url, checks);
+        const result = await getSecurityAudit(url, checks, { forceFresh });
 
         const audits = result.audits.map((audit) => {
           const auditItem = audit as {

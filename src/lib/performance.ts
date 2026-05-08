@@ -6,8 +6,9 @@ export async function getCoreWebVitals(
   url: string,
   device: "desktop" | "mobile" = "desktop",
   threshold?: { lcp?: number; inp?: number; cls?: number },
+  options?: { forceFresh?: boolean },
 ) {
-  const result = await runLighthouseAudit(url, ["performance"], device);
+  const result = await runLighthouseAudit(url, ["performance"], device, false, options);
 
   const coreWebVitals = {
     lcp: result.metrics["largest-contentful-paint"],
@@ -35,10 +36,15 @@ export async function getCoreWebVitals(
 }
 
 // Helper function to compare mobile vs desktop
-export async function compareMobileDesktop(url: string, categories?: string[], throttling = false) {
+export async function compareMobileDesktop(
+  url: string,
+  categories?: string[],
+  throttling = false,
+  options?: { forceFresh?: boolean },
+) {
   // Run audits sequentially to avoid Chrome port conflicts
-  const mobileResult = await runLighthouseAudit(url, categories, "mobile", throttling);
-  const desktopResult = await runLighthouseAudit(url, categories, "desktop", throttling);
+  const mobileResult = await runLighthouseAudit(url, categories, "mobile", throttling, options);
+  const desktopResult = await runLighthouseAudit(url, categories, "desktop", throttling, options);
 
   const comparison = {
     url: mobileResult.url,
@@ -73,8 +79,9 @@ export async function getLcpOpportunities(
   url: string,
   device: "desktop" | "mobile" = "desktop",
   threshold = DEFAULTS.LCP_THRESHOLD,
+  options?: { forceFresh?: boolean },
 ) {
-  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device);
+  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, false, options);
   const { lhr } = runnerResult;
 
   const lcpValue = (lhr.audits["largest-contentful-paint"]?.numericValue || 0) / 1000;

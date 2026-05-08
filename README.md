@@ -15,7 +15,8 @@ A Model Context Protocol (MCP) server that provides comprehensive web performanc
 - **📱 Mobile vs Desktop**: Comparative analysis across devices with throttling options
 - **⚡ Core Web Vitals**: LCP, INP, CLS monitoring with threshold checking
 - **🎯 Performance Budgets**: Custom performance thresholds and budget monitoring
-- **📚 Reference Resources**: Built-in guidelines and best practices for web performance, accessibility, SEO, and security
+- **�️ Result Caching**: In-memory LHR cache (5-minute TTL) eliminates redundant Lighthouse runs for repeated tool calls on the same URL/device/throttling combination
+- **�📚 Reference Resources**: Built-in guidelines and best practices for web performance, accessibility, SEO, and security
 
 ## 🛠️ Requirements
 
@@ -192,6 +193,16 @@ Follow the MCP install [guide](https://modelcontextprotocol.io/quickstart/user),
 }
 ```
 
+## 🗄️ Result Caching
+
+Pharos caches full Lighthouse results in memory to avoid redundant Chrome launches. Any two tool calls for the same `url` + `device` + `throttling` combination within a 5-minute window reuse the cached result automatically.
+
+- **Cache key**: `url :: device :: throttling`
+- **TTL**: 5 minutes (lazy eviction on access)
+- **Scope**: process-lifetime, cleared on server restart
+- **Profile mode**: caching is disabled when a Chrome profile is configured, since authenticated sessions produce user-specific results
+- **`forceFresh`**: pass `forceFresh: true` on any tool call to bypass the cache and store a fresh result for subsequent calls
+
 ## 🌐 Transport
 
 By default, Pharos uses **stdio** transport (for VS Code, Claude Desktop, Cursor, etc.).
@@ -215,31 +226,31 @@ Pharos exposes 8 tools with the `pharos_` prefix, all marked read-only:
 
 ### 🏁 Audit Tools
 
-| Tool           | Description                                 | Parameters                                                                          |
-| -------------- | ------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `pharos_audit` | Full Lighthouse audit across all categories | `url`, `categories?`, `device?`, `throttling?`, `includeDetails?`, `focusCategory?` |
+| Tool           | Description                                 | Parameters                                                                                         |
+| -------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `pharos_audit` | Full Lighthouse audit across all categories | `url`, `categories?`, `device?`, `throttling?`, `forceFresh?`, `includeDetails?`, `focusCategory?` |
 
 ### ⚡ Performance Tools
 
-| Tool                     | Description                                  | Parameters                                             |
-| ------------------------ | -------------------------------------------- | ------------------------------------------------------ |
-| `pharos_performance`     | Performance score with optional budget check | `url`, `device?`, `budget?`                            |
-| `pharos_core_web_vitals` | Core Web Vitals with threshold validation    | `url`, `device?`, `includeDetails?`, `threshold?`      |
-| `pharos_compare_devices` | Side-by-side mobile vs desktop comparison    | `url`, `categories?`, `throttling?`, `includeDetails?` |
-| `pharos_lcp`             | LCP value and improvement opportunities      | `url`, `device?`, `includeDetails?`, `threshold?`      |
+| Tool                     | Description                                  | Parameters                                                            |
+| ------------------------ | -------------------------------------------- | --------------------------------------------------------------------- |
+| `pharos_performance`     | Performance score with optional budget check | `url`, `device?`, `forceFresh?`, `budget?`                            |
+| `pharos_core_web_vitals` | Core Web Vitals with threshold validation    | `url`, `device?`, `forceFresh?`, `includeDetails?`, `threshold?`      |
+| `pharos_compare_devices` | Side-by-side mobile vs desktop comparison    | `url`, `categories?`, `throttling?`, `forceFresh?`, `includeDetails?` |
+| `pharos_lcp`             | LCP value and improvement opportunities      | `url`, `device?`, `forceFresh?`, `includeDetails?`, `threshold?`      |
 
 ### 🔍 Analysis Tools
 
-| Tool               | Description                              | Parameters                                     |
-| ------------------ | ---------------------------------------- | ---------------------------------------------- |
-| `pharos_unused_js` | Find removable JavaScript by byte count  | `url`, `device?`, `minBytes?`                  |
-| `pharos_resources` | Full resource breakdown by type and size | `url`, `device?`, `resourceTypes?`, `minSize?` |
+| Tool               | Description                              | Parameters                                                    |
+| ------------------ | ---------------------------------------- | ------------------------------------------------------------- |
+| `pharos_unused_js` | Find removable JavaScript by byte count  | `url`, `device?`, `forceFresh?`, `minBytes?`                  |
+| `pharos_resources` | Full resource breakdown by type and size | `url`, `device?`, `forceFresh?`, `resourceTypes?`, `minSize?` |
 
 ### 🔒 Security Tools
 
-| Tool              | Description                                  | Parameters                  |
-| ----------------- | -------------------------------------------- | --------------------------- |
-| `pharos_security` | HTTPS, CSP, HTTP/2, and vulnerability checks | `url`, `device?`, `checks?` |
+| Tool              | Description                                  | Parameters                      |
+| ----------------- | -------------------------------------------- | ------------------------------- |
+| `pharos_security` | HTTPS, CSP, HTTP/2, and vulnerability checks | `url`, `forceFresh?`, `checks?` |
 
 ## 💬 Available Prompts
 
@@ -302,6 +313,7 @@ Pharos provides built-in reference resources with essential guidelines and best 
 - **`device`**: Target device (`"desktop"` or `"mobile"`, default: `"desktop"`)
 - **`includeDetails`**: Include detailed audit information (default: `false`)
 - **`throttling`**: Enable network/CPU throttling (default: `false`)
+- **`forceFresh`**: Bypass the in-memory cache and force a new Lighthouse run (default: `false`)
 
 ### Specific Parameters
 

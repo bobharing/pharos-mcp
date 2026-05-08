@@ -3,6 +3,7 @@ import * as chromeLauncher from "chrome-launcher";
 import { LighthouseResult, LighthouseAuditResult } from "../types.ts";
 import { SCREEN_DIMENSIONS, THROTTLING_CONFIG, KEY_METRICS } from "./constants.ts";
 import { getChromeLaunchConfig, getChromeLaunchOptions, isProfileConfig } from "./chrome.ts";
+import { buildCacheKey, getCachedResult, setCachedResult } from "./cache.ts";
 
 let remoteAuditLock: Promise<void> = Promise.resolve();
 
@@ -90,10 +91,21 @@ export async function runRawLighthouseAudit(
   categories?: string[],
   device: "desktop" | "mobile" = "desktop",
   throttling = false,
+  options?: { forceFresh?: boolean },
 ): Promise<LighthouseResult> {
   const chromeConfig = getChromeLaunchConfig();
   const { remoteDebuggingPort } = chromeConfig;
   const disableStorageReset = isProfileConfig(chromeConfig);
+
+  // Skip cache for profile/authenticated sessions
+  const useCache = !disableStorageReset;
+  if (useCache) {
+    const key = buildCacheKey(url, device, throttling);
+    if (!options?.forceFresh) {
+      const cached = getCachedResult(key);
+      if (cached) return cached;
+    }
+  }
 
   const runAudit = async () => {
     const chrome = remoteDebuggingPort ? null : await launchChrome();
@@ -105,11 +117,19 @@ export async function runRawLighthouseAudit(
         throw new Error("Failed to resolve Chrome debugging port");
       }
 
-      const options = buildLighthouseOptions(port, device, categories, throttling, disableStorageReset);
-      const runnerResult = (await lighthouse(url, options)) as LighthouseResult;
+      // On a cache miss, run all categories so any subsequent tool call can be served from cache.
+      // Only limit categories when cache is disabled (profile mode) or caller explicitly passes categories without caching.
+      const effectiveCategories = useCache ? undefined : categories;
+      const auditOptions = buildLighthouseOptions(port, device, effectiveCategories, throttling, disableStorageReset);
+      const runnerResult = (await lighthouse(url, auditOptions)) as LighthouseResult;
 
       if (!runnerResult) {
         throw new Error("Failed to run Lighthouse audit");
+      }
+
+      if (useCache) {
+        const key = buildCacheKey(url, device, throttling);
+        setCachedResult(key, runnerResult);
       }
 
       return runnerResult;
@@ -180,8 +200,9 @@ export async function runLighthouseAudit(
   categories?: string[],
   device: "desktop" | "mobile" = "desktop",
   throttling = false,
+  options?: { forceFresh?: boolean },
 ): Promise<LighthouseAuditResult> {
-  const runnerResult = await runRawLighthouseAudit(url, categories, device, throttling);
+  const runnerResult = await runRawLighthouseAudit(url, categories, device, throttling, options);
   const { lhr } = runnerResult;
 
   return {

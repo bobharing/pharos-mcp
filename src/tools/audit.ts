@@ -18,7 +18,7 @@ export function registerAuditTools(server: McpServer) {
       inputSchema: auditParamsSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, categories, device, throttling, includeDetails, focusCategory }) => {
+    async ({ url, categories, device, throttling, forceFresh, includeDetails, focusCategory }) => {
       try {
         // Ensure focusCategory is included in the Lighthouse run even if not in categories
         const effectiveCategories = focusCategory
@@ -28,7 +28,7 @@ export function registerAuditTools(server: McpServer) {
               : [...categories, focusCategory]
             : [focusCategory]
           : categories;
-        const runnerResult = await runRawLighthouseAudit(url, effectiveCategories, device, throttling);
+        const runnerResult = await runRawLighthouseAudit(url, effectiveCategories, device, throttling, { forceFresh });
         const { lhr } = runnerResult;
 
         const formattedCategories = formatCategoryScores(lhr);

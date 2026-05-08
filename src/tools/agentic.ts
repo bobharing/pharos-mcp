@@ -13,9 +13,9 @@ export function registerAgenticTools(server: McpServer) {
       inputSchema: agenticAuditSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, includeDetails }) => {
+    async ({ url, device, forceFresh, includeDetails }) => {
       try {
-        const result = await getAgenticAudit(url, device);
+        const result = await getAgenticAudit(url, device, { forceFresh });
 
         const audits = result.audits.map((audit) => {
           const a = audit as {

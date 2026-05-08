@@ -105,8 +105,8 @@ describe("lighthouse-performance", () => {
       const result = await compareMobileDesktop(mockUrl, ["performance"], true);
 
       expect(lighthouseCore.runLighthouseAudit).toHaveBeenCalledTimes(2);
-      expect(lighthouseCore.runLighthouseAudit).toHaveBeenNthCalledWith(1, mockUrl, ["performance"], "mobile", true);
-      expect(lighthouseCore.runLighthouseAudit).toHaveBeenNthCalledWith(2, mockUrl, ["performance"], "desktop", true);
+      expect(lighthouseCore.runLighthouseAudit).toHaveBeenNthCalledWith(1, mockUrl, ["performance"], "mobile", true, undefined);
+      expect(lighthouseCore.runLighthouseAudit).toHaveBeenNthCalledWith(2, mockUrl, ["performance"], "desktop", true, undefined);
 
       expect(result).toMatchObject({
         url: mockUrl,
@@ -159,7 +159,7 @@ describe("lighthouse-performance", () => {
 
       const result = await getLcpOpportunities(mockUrl, "desktop", 2.5);
 
-      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["performance"], "desktop");
+      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["performance"], "desktop", false, undefined);
       expect(result).toMatchObject({
         url: mockUrl,
         device: "desktop",

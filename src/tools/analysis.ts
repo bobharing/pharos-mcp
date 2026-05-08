@@ -12,9 +12,9 @@ export function registerAnalysisTools(server: McpServer) {
       inputSchema: unusedJavaScriptSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, minBytes }) => {
+    async ({ url, device, forceFresh, minBytes }) => {
       try {
-        const result = await findUnusedJavaScript(url, device, minBytes);
+        const result = await findUnusedJavaScript(url, device, minBytes, { forceFresh });
 
         return successResponse({
           url: result.url,
@@ -48,9 +48,9 @@ export function registerAnalysisTools(server: McpServer) {
       inputSchema: resourceAnalysisSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, resourceTypes, minSize }) => {
+    async ({ url, device, forceFresh, resourceTypes, minSize }) => {
       try {
-        const result = await analyzeResources(url, device, resourceTypes, minSize);
+        const result = await analyzeResources(url, device, resourceTypes, minSize, { forceFresh });
 
         const resourceCounts: Record<string, { count: number; sizeKB: number }> = {};
         for (const [type, data] of Object.entries(result.summary)) {

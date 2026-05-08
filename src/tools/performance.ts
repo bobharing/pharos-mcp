@@ -15,9 +15,9 @@ export function registerPerformanceTools(server: McpServer) {
       inputSchema: performanceSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, budget }) => {
+    async ({ url, device, forceFresh, budget }) => {
       try {
-        const runnerResult = await runRawLighthouseAudit(url, ["performance"], device);
+        const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, false, { forceFresh });
         const { lhr } = runnerResult;
 
         const formattedCategories = formatCategoryScores(lhr);
@@ -74,9 +74,9 @@ export function registerPerformanceTools(server: McpServer) {
       inputSchema: coreWebVitalsSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, includeDetails, threshold }) => {
+    async ({ url, device, forceFresh, includeDetails, threshold }) => {
       try {
-        const result = await getCoreWebVitals(url, device, threshold);
+        const result = await getCoreWebVitals(url, device, threshold, { forceFresh });
 
         const coreWebVitals: Record<string, { title: string; value: string; score: number | null | undefined }> = {};
         for (const [key, metric] of Object.entries(result.coreWebVitals)) {
@@ -109,9 +109,9 @@ export function registerPerformanceTools(server: McpServer) {
       inputSchema: compareDevicesSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, categories, throttling, includeDetails }) => {
+    async ({ url, categories, throttling, forceFresh, includeDetails }) => {
       try {
-        const result = await compareMobileDesktop(url, categories, throttling);
+        const result = await compareMobileDesktop(url, categories, throttling, { forceFresh });
 
         const differences: Record<string, { mobile: number; desktop: number; difference: number; better: string }> =
           {};
@@ -142,9 +142,9 @@ export function registerPerformanceTools(server: McpServer) {
       inputSchema: lcpOpportunitiesSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, threshold, includeDetails }) => {
+    async ({ url, device, forceFresh, threshold, includeDetails }) => {
       try {
-        const result = await getLcpOpportunities(url, device, threshold);
+        const result = await getLcpOpportunities(url, device, threshold, { forceFresh });
 
         const opportunities = (result.opportunities || []).map((opp) => {
           const o = opp as {
