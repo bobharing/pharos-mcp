@@ -222,7 +222,7 @@ The HTTP transport is stateless — each request is independent, which is correc
 
 ## 🔧 Available Tools
 
-Pharos exposes 8 tools with the `pharos_` prefix, all marked read-only:
+Pharos exposes 9 tools with the `pharos_` prefix, all marked read-only:
 
 ### 🏁 Audit Tools
 
