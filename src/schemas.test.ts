@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { baseSchemas, coreWebVitalsSchema, performanceBudgetSchema } from "./schemas";
+import { describe, it, expect } from "bun:test";
+import { baseSchemas, coreWebVitalsSchema } from "./schemas";
 
 describe("baseSchemas", () => {
   describe("url validator", () => {
@@ -72,7 +72,7 @@ describe("baseSchemas", () => {
 
   describe("categories validator", () => {
     it("should accept valid categories", () => {
-      const validCategories = ["performance", "accessibility", "best-practices", "seo", "pwa"];
+      const validCategories = ["performance", "accessibility", "best-practices", "seo"];
       const result = baseSchemas.categories.safeParse(validCategories);
       expect(result.success).toBe(true);
     });
@@ -97,7 +97,7 @@ describe("coreWebVitalsSchema", () => {
       includeDetails: true,
       threshold: {
         lcp: 2.5,
-        fid: 100,
+        inp: 100,
         cls: 0.1,
       },
     };
@@ -111,7 +111,7 @@ describe("coreWebVitalsSchema", () => {
 
     const validThreshold = {
       lcp: 2.5,
-      fid: 100,
+      inp: 100,
       cls: 0.1,
     };
 
@@ -131,44 +131,3 @@ describe("coreWebVitalsSchema", () => {
   });
 });
 
-describe("performanceBudgetSchema", () => {
-  it("should validate performance budget correctly", () => {
-    const validBudget = {
-      url: "https://example.com",
-      device: "desktop" as const,
-      budget: {
-        performanceScore: 90,
-        firstContentfulPaint: 1500,
-        largestContentfulPaint: 2500,
-        totalBlockingTime: 200,
-        cumulativeLayoutShift: 0.1,
-        speedIndex: 3000,
-      },
-    };
-
-    const urlResult = performanceBudgetSchema.shape.url.safeParse(validBudget.url);
-    expect(urlResult.success).toBe(true);
-
-    const budgetResult = performanceBudgetSchema.shape.budget.safeParse(validBudget.budget);
-    expect(budgetResult.success).toBe(true);
-  });
-
-  it("should reject performance score outside 0-100 range", () => {
-    const invalidBudget = {
-      performanceScore: 150,
-    };
-
-    const result = performanceBudgetSchema.shape.budget.safeParse(invalidBudget);
-    expect(result.success).toBe(false);
-  });
-
-  it("should reject negative metric values", () => {
-    const invalidBudget = {
-      performanceScore: 90,
-      firstContentfulPaint: -100,
-    };
-
-    const result = performanceBudgetSchema.shape.budget.safeParse(invalidBudget);
-    expect(result.success).toBe(false);
-  });
-});

@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, mock } from "bun:test";
 import { registerPrompts } from "./prompts";
 
 // Mock the MCP server
 const mockServer = {
-  registerPrompt: vi.fn(),
+  registerPrompt: mock(),
 };
 
 describe("Prompts Registration", () => {

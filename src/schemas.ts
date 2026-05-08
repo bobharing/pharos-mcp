@@ -25,7 +25,7 @@ export const baseSchemas = {
   device: z.enum(["desktop", "mobile"]).describe("Device to emulate (default: desktop)").default("desktop"),
   throttling: z.boolean().describe("Whether to throttle the audit (default: false)").default(false),
   categories: z
-    .array(z.enum(["performance", "accessibility", "best-practices", "seo", "pwa"]).describe("Categories to audit"))
+    .array(z.enum(["performance", "accessibility", "best-practices", "seo", "agentic-browsing"]).describe("Categories to audit"))
     .optional(),
   includeDetails: z.boolean().describe("Include detailed metrics and recommendations").default(false),
   threshold: z.number().describe("Score threshold (0-100)").min(0).max(100).optional(),
@@ -37,17 +37,27 @@ export const auditParamsSchema = z.object({
   categories: baseSchemas.categories,
   device: baseSchemas.device,
   throttling: baseSchemas.throttling,
+  includeDetails: z.boolean().describe("Include detailed per-audit breakdowns for each category").default(false),
+  focusCategory: z
+    .enum(["performance", "accessibility", "best-practices", "seo", "agentic-browsing"])
+    .optional()
+    .describe("If set, return detailed audits only for this category"),
 });
 
-export const basicAuditSchema = z.object({
+export const performanceSchema = z.object({
   url: baseSchemas.url,
   device: baseSchemas.device,
-});
-
-export const detailedAuditSchema = z.object({
-  url: baseSchemas.url,
-  device: baseSchemas.device,
-  includeDetails: baseSchemas.includeDetails,
+  budget: z
+    .object({
+      performanceScore: baseSchemas.threshold,
+      firstContentfulPaint: z.number().min(0).optional().describe("FCP budget in milliseconds"),
+      largestContentfulPaint: z.number().min(0).optional().describe("LCP budget in milliseconds"),
+      totalBlockingTime: z.number().min(0).optional().describe("TBT budget in milliseconds"),
+      cumulativeLayoutShift: z.number().min(0).optional().describe("CLS budget"),
+      speedIndex: z.number().min(0).optional().describe("Speed Index budget in milliseconds"),
+    })
+    .optional()
+    .describe("If provided, checks metrics against these budget thresholds"),
 });
 
 export const coreWebVitalsSchema = z.object({
@@ -57,23 +67,10 @@ export const coreWebVitalsSchema = z.object({
   threshold: z
     .object({
       lcp: z.number().min(0).optional().describe("Largest Contentful Paint threshold in seconds"),
-      fid: z.number().min(0).optional().describe("First Input Delay threshold in milliseconds"),
+      inp: z.number().min(0).optional().describe("Interaction to Next Paint threshold in milliseconds (evaluated using Total Blocking Time as a lab proxy)"),
       cls: z.number().min(0).optional().describe("Cumulative Layout Shift threshold"),
     })
     .optional(),
-});
-
-export const performanceBudgetSchema = z.object({
-  url: baseSchemas.url,
-  device: baseSchemas.device,
-  budget: z.object({
-    performanceScore: baseSchemas.threshold,
-    firstContentfulPaint: z.number().min(0).optional().describe("FCP budget in milliseconds"),
-    largestContentfulPaint: z.number().min(0).optional().describe("LCP budget in milliseconds"),
-    totalBlockingTime: z.number().min(0).optional().describe("TBT budget in milliseconds"),
-    cumulativeLayoutShift: z.number().min(0).optional().describe("CLS budget"),
-    speedIndex: z.number().min(0).optional().describe("Speed Index budget in milliseconds"),
-  }),
 });
 
 export const compareDevicesSchema = z.object({
@@ -108,9 +105,16 @@ export const unusedJavaScriptSchema = z.object({
 
 export const securityAuditSchema = z.object({
   url: baseSchemas.url,
-  device: baseSchemas.device,
   checks: z
-    .array(z.enum(["https", "mixed-content", "csp", "hsts", "vulnerabilities"]))
+    .array(z.enum(["https", "mixed-content", "hsts", "csp"]))
     .optional()
-    .describe("Specific security checks to perform"),
+    .describe(
+      "Specific security checks to perform. 'https', 'mixed-content', and 'hsts' all evaluate the same Lighthouse is-on-https audit. 'csp' evaluates the csp-xss audit.",
+    ),
+});
+
+export const agenticAuditSchema = z.object({
+  url: baseSchemas.url,
+  device: baseSchemas.device,
+  includeDetails: baseSchemas.includeDetails,
 });

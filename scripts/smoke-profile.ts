@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
-import { parseCliArgs } from "../src/cli.js";
-import { setChromeLaunchConfig } from "../src/chrome-config.js";
-import { runLighthouseAudit } from "../src/lighthouse-core.js";
+import { parseCliArgs } from "../src/cli.ts";
+import { setChromeLaunchConfig } from "../src/lib/chrome.ts";
+import { runLighthouseAudit } from "../src/lib/lighthouse.ts";
 
 type Device = "desktop" | "mobile";
 
@@ -84,11 +84,11 @@ function parseSmokeArgs(argv: string[]): SmokeOptions {
 function printUsage() {
   // eslint-disable-next-line no-console
   console.error(String.raw`Usage:
-  npm run smoke:profile -- --url https://example.com \
+  bun run smoke:profile -- --url https://example.com \
     --profile-path "<profile-path>" \
     --no-headless
 
-  npm run smoke:profile -- --url https://example.com --chrome-port 9222
+  bun run smoke:profile -- --url https://example.com --chrome-port 9222
 
 Optional flags:
   --device desktop|mobile

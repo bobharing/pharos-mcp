@@ -1,12 +1,36 @@
 import lighthouse from "lighthouse";
 import * as chromeLauncher from "chrome-launcher";
-import { LighthouseResult, LighthouseAuditResult } from "./types.js";
-import { SCREEN_DIMENSIONS, THROTTLING_CONFIG, KEY_METRICS } from "./lighthouse-constants.js";
-import { getChromeLaunchConfig, getChromeLaunchOptions, isProfileConfig } from "./chrome-config.js";
+import { LighthouseResult, LighthouseAuditResult } from "../types.ts";
+import { SCREEN_DIMENSIONS, THROTTLING_CONFIG, KEY_METRICS } from "./constants.ts";
+import { getChromeLaunchConfig, getChromeLaunchOptions, isProfileConfig } from "./chrome.ts";
 
 let remoteAuditLock: Promise<void> = Promise.resolve();
 
-async function withRemoteDebuggingLock<T>(runAudit: () => Promise<T>): Promise<T> {
+type ChromeInstance = { kill: () => void | Promise<void> };
+const activeChromeInstances = new Set<ChromeInstance>();
+
+export function getActiveChromeInstances(): ReadonlySet<ChromeInstance> {
+  return activeChromeInstances;
+}
+
+async function killChrome(chrome: ChromeInstance, maxRetries = 5): Promise<void> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      await chrome.kill();
+      return;
+    } catch (error) {
+      const isEbusy = error instanceof Error && (error as NodeJS.ErrnoException).code === "EBUSY";
+      if (isEbusy && attempt < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+      } else {
+        // Cleanup failure should not surface as an audit error
+        return;
+      }
+    }
+  }
+}
+
+async function withAuditLock<T>(runAudit: () => Promise<T>): Promise<T> {
   const previous = remoteAuditLock.catch(() => undefined);
   let release: (() => void) | undefined;
   const current = new Promise<void>((resolve) => {
@@ -49,7 +73,7 @@ export function buildLighthouseOptions(
   disableStorageReset = false,
 ) {
   return {
-    logLevel: "info" as const,
+    logLevel: "error" as const,
     output: "json" as const,
     onlyCategories: categories,
     port,
@@ -73,6 +97,7 @@ export async function runRawLighthouseAudit(
 
   const runAudit = async () => {
     const chrome = remoteDebuggingPort ? null : await launchChrome();
+    if (chrome) activeChromeInstances.add(chrome);
     const port = remoteDebuggingPort ?? chrome?.port;
 
     try {
@@ -90,16 +115,13 @@ export async function runRawLighthouseAudit(
       return runnerResult;
     } finally {
       if (chrome) {
-        await chrome.kill();
+        activeChromeInstances.delete(chrome);
+        await killChrome(chrome);
       }
     }
   };
 
-  if (remoteDebuggingPort) {
-    return withRemoteDebuggingLock(runAudit);
-  }
-
-  return runAudit();
+  return withAuditLock(runAudit);
 }
 
 // Helper function to filter audits by category
@@ -173,13 +195,3 @@ export async function runLighthouseAudit(
   };
 }
 
-// Helper function to get detailed audit results for a category
-export async function getDetailedAuditResults(url: string, category: string, device: "desktop" | "mobile") {
-  const runnerResult = await runRawLighthouseAudit(url, [category], device);
-  const { lhr } = runnerResult;
-
-  return {
-    lhr,
-    audits: filterAuditsByCategory(lhr, category),
-  };
-}

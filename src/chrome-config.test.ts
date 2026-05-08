@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { join } from "node:path";
-import { buildChromeFlags, buildChromeLaunchOptions, isProfileConfig } from "./chrome-config";
-import { CHROME_FLAGS } from "./lighthouse-constants";
+import { buildChromeFlags, buildChromeLaunchOptions, isProfileConfig } from "./lib/chrome";
+import { CHROME_FLAGS } from "./lib/constants";
 
 describe("chrome-config", () => {
   describe("buildChromeFlags", () => {
@@ -74,9 +74,6 @@ describe("chrome-config", () => {
   });
 
   describe("buildChromeLaunchOptions", () => {
-    afterEach(() => {
-      vi.unstubAllEnvs();
-    });
 
     it("includes chromePath when set in config", () => {
       const options = buildChromeLaunchOptions({ chromePath: "/usr/bin/google-chrome" });

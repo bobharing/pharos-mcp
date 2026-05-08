@@ -1,20 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { findUnusedJavaScript, analyzeResources, getSecurityAudit } from "./lighthouse-analysis";
-import * as lighthouseCore from "./lighthouse-core";
-import { SECURITY_AUDITS, DEFAULTS } from "./lighthouse-constants";
+import { describe, it, expect, mock, beforeEach } from "bun:test";
+import type { Mock } from "bun:test";
+import { findUnusedJavaScript, analyzeResources, getSecurityAudit } from "./lib/analysis";
+import * as lighthouseCore from "./lib/lighthouse";
+import { SECURITY_AUDITS, DEFAULTS } from "./lib/constants";
 
-// Mock the lighthouse-core module
-vi.mock("./lighthouse-core", () => ({
-  runRawLighthouseAudit: vi.fn(),
+// Mock the lighthouse module
+mock.module("./lib/lighthouse", () => ({
+  runRawLighthouseAudit: mock(),
 }));
+
+const mockRunRawLighthouseAudit = () => lighthouseCore.runRawLighthouseAudit as unknown as Mock;
 
 describe("lighthouse-analysis", () => {
   const mockUrl = "https://example.com";
   const mockFetchTime = "2024-01-01T00:00:00.000Z";
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockRunRawLighthouseAudit().mockReset();
   });
 
   describe("findUnusedJavaScript", () => {
@@ -42,9 +45,7 @@ describe("lighthouse-analysis", () => {
         },
       };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
       const result = await findUnusedJavaScript(mockUrl, "desktop", 1000); // Lower threshold to include both
 
@@ -95,9 +96,7 @@ describe("lighthouse-analysis", () => {
         },
       };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
       const result = await findUnusedJavaScript(mockUrl, "desktop", 1000);
 
@@ -113,9 +112,7 @@ describe("lighthouse-analysis", () => {
         audits: {},
       };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
       const result = await findUnusedJavaScript(mockUrl);
 
@@ -147,9 +144,7 @@ describe("lighthouse-analysis", () => {
         },
       };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
       const result = await findUnusedJavaScript(mockUrl);
 
@@ -171,14 +166,14 @@ describe("lighthouse-analysis", () => {
                   transferSize: 50000,
                   resourceSize: 60000,
                   mimeType: "image/jpeg",
-                  resourceType: "images", // Match the expected categorization
+                  resourceType: "image",
                 },
                 {
                   url: "https://example.com/script.js",
                   transferSize: 30000,
                   resourceSize: 35000,
                   mimeType: "application/javascript",
-                  resourceType: "javascript", // Match the expected categorization
+                  resourceType: "script",
                 },
                 {
                   url: "https://example.com/style.css",
@@ -193,9 +188,7 @@ describe("lighthouse-analysis", () => {
         },
       };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
       const result = await analyzeResources(mockUrl, "desktop", ["images", "javascript"], 10);
 
@@ -233,9 +226,7 @@ describe("lighthouse-analysis", () => {
         },
       };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
       const result = await analyzeResources(mockUrl, "desktop", undefined, 50); // 50KB minimum
 
@@ -251,45 +242,18 @@ describe("lighthouse-analysis", () => {
           "network-requests": {
             details: {
               items: [
-                {
-                  url: "https://example.com/unknown",
-                  transferSize: 10000,
-                  resourceSize: 10000,
-                  mimeType: "image/png",
-                },
-                {
-                  url: "https://example.com/script",
-                  transferSize: 10000,
-                  resourceSize: 10000,
-                  mimeType: "text/javascript",
-                },
-                {
-                  url: "https://example.com/style",
-                  transferSize: 10000,
-                  resourceSize: 10000,
-                  mimeType: "text/css",
-                },
-                {
-                  url: "https://example.com/font.woff2",
-                  transferSize: 10000,
-                  resourceSize: 10000,
-                  mimeType: "font/woff2",
-                },
-                {
-                  url: "https://example.com/unknown.bin",
-                  transferSize: 10000,
-                  resourceSize: 10000,
-                  mimeType: "application/octet-stream",
-                },
+                { url: "https://example.com/unknown", transferSize: 10000, resourceSize: 10000, mimeType: "image/png" },
+                { url: "https://example.com/script", transferSize: 10000, resourceSize: 10000, mimeType: "text/javascript" },
+                { url: "https://example.com/style", transferSize: 10000, resourceSize: 10000, mimeType: "text/css" },
+                { url: "https://example.com/font.woff2", transferSize: 10000, resourceSize: 10000, mimeType: "font/woff2" },
+                { url: "https://example.com/unknown.bin", transferSize: 10000, resourceSize: 10000, mimeType: "application/octet-stream" },
               ],
             },
           },
         },
       };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
       const result = await analyzeResources(mockUrl);
 
@@ -308,9 +272,7 @@ describe("lighthouse-analysis", () => {
         audits: {},
       };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
       const result = await analyzeResources(mockUrl);
 
@@ -331,25 +293,19 @@ describe("lighthouse-analysis", () => {
         mockAudits[auditId] = {
           title: `Security Audit ${index}`,
           description: `Description for ${auditId}`,
-          score: index % 2 === 0 ? 1 : 0.5, // Alternate between passing and failing
+          score: index % 2 === 0 ? 1 : 0.5,
           scoreDisplayMode: "binary",
           displayValue: index % 2 === 0 ? "Passed" : "Failed",
         };
       });
 
-      const mockLhr = {
-        finalDisplayedUrl: mockUrl,
-        fetchTime: mockFetchTime,
-        audits: mockAudits,
-      };
+      const mockLhr = { finalDisplayedUrl: mockUrl, fetchTime: mockFetchTime, audits: mockAudits };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
-      const result = await getSecurityAudit(mockUrl, "desktop");
+      const result = await getSecurityAudit(mockUrl);
 
-      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["best-practices"], "desktop");
+      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["best-practices"]);
       expect(result.audits).toHaveLength(SECURITY_AUDITS.length);
       expect(result.overallScore).toBeGreaterThan(0);
       expect(result.overallScore).toBeLessThanOrEqual(100);
@@ -367,19 +323,12 @@ describe("lighthouse-analysis", () => {
         };
       });
 
-      const mockLhr = {
-        finalDisplayedUrl: mockUrl,
-        fetchTime: mockFetchTime,
-        audits: mockAudits,
-      };
+      const mockLhr = { finalDisplayedUrl: mockUrl, fetchTime: mockFetchTime, audits: mockAudits };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
-      const result = await getSecurityAudit(mockUrl, "desktop", ["https", "csp"]);
+      const result = await getSecurityAudit(mockUrl, ["https", "csp"]);
 
-      // Should only include audits that contain "https" or "csp" in their ID
       const httpsAudits = result.audits.filter(
         (audit: any) => audit && (audit.id.includes("https") || audit.id.includes("csp")),
       );
@@ -387,50 +336,25 @@ describe("lighthouse-analysis", () => {
     });
 
     it("should handle missing security audits", async () => {
-      const mockLhr = {
-        finalDisplayedUrl: mockUrl,
-        fetchTime: mockFetchTime,
-        audits: {},
-      };
+      const mockLhr = { finalDisplayedUrl: mockUrl, fetchTime: mockFetchTime, audits: {} };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
       const result = await getSecurityAudit(mockUrl);
 
       expect(result.audits).toEqual([]);
-      // When no audits, the division by zero results in NaN, which becomes 0 when rounded
       expect(Number.isNaN(result.overallScore) || result.overallScore === 0).toBe(true);
     });
 
     it("should calculate overall score correctly", async () => {
       const mockAudits: Record<string, any> = {
-        "is-on-https": {
-          title: "HTTPS",
-          description: "Uses HTTPS",
-          score: 1,
-          scoreDisplayMode: "binary",
-          displayValue: "Passed",
-        },
-        "uses-http2": {
-          title: "HTTP/2",
-          description: "Uses HTTP/2",
-          score: 0,
-          scoreDisplayMode: "binary",
-          displayValue: "Failed",
-        },
+        "is-on-https": { title: "HTTPS", description: "Uses HTTPS", score: 1, scoreDisplayMode: "binary", displayValue: "Passed" },
+        "csp-xss": { title: "CSP", description: "CSP effective", score: 0, scoreDisplayMode: "binary", displayValue: "Failed" },
       };
 
-      const mockLhr = {
-        finalDisplayedUrl: mockUrl,
-        fetchTime: mockFetchTime,
-        audits: mockAudits,
-      };
+      const mockLhr = { finalDisplayedUrl: mockUrl, fetchTime: mockFetchTime, audits: mockAudits };
 
-      vi.mocked(lighthouseCore.runRawLighthouseAudit).mockResolvedValue({
-        lhr: mockLhr,
-      } as any);
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
 
       const result = await getSecurityAudit(mockUrl);
 

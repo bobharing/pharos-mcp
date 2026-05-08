@@ -9,7 +9,7 @@ export function registerPrompts(server: McpServer) {
       argsSchema: {
         auditResults: z.string().describe("JSON audit results from Lighthouse"),
         focusArea: z
-          .enum(["performance", "accessibility", "seo", "best-practices", "pwa"])
+          .enum(["performance", "accessibility", "seo", "best-practices"])
           .optional()
           .describe("Specific area to focus the analysis on"),
       },
@@ -244,7 +244,7 @@ ${constraints ? `Constraints: ${constraints}` : ""}
 
 Please provide:
 1. Specific optimizations for LCP (Largest Contentful Paint)
-2. Specific optimizations for FID/INP (First Input Delay/Interaction to Next Paint)
+2. Specific optimizations for INP (Interaction to Next Paint)
 3. Specific optimizations for CLS (Cumulative Layout Shift)
 4. Framework-specific recommendations
 5. Measurement and monitoring strategy`,

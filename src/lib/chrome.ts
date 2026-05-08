@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync } from "node:fs";
-import { CHROME_FLAGS } from "./lighthouse-constants.js";
+import { CHROME_FLAGS } from "./constants.ts";
 
 export type ChromeLaunchConfig = {
   headless?: boolean;

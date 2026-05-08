@@ -1,23 +1,11 @@
-import { runLighthouseAudit, runRawLighthouseAudit } from "./lighthouse-core.js";
-import { BUDGET_METRIC_MAPPINGS, LCP_OPPORTUNITIES, DEFAULTS } from "./lighthouse-constants.js";
-
-// Helper function to get performance score only
-export async function getPerformanceScore(url: string, device: "desktop" | "mobile" = "desktop") {
-  const result = await runLighthouseAudit(url, ["performance"], device);
-  return {
-    url: result.url,
-    device: result.device,
-    performanceScore: result.categories.performance?.score || 0,
-    metrics: result.metrics,
-    fetchTime: result.fetchTime,
-  };
-}
+import { runLighthouseAudit, runRawLighthouseAudit } from "./lighthouse.ts";
+import { LCP_OPPORTUNITIES, DEFAULTS } from "./constants.ts";
 
 // Helper function to get Core Web Vitals
 export async function getCoreWebVitals(
   url: string,
   device: "desktop" | "mobile" = "desktop",
-  threshold?: { lcp?: number; fid?: number; cls?: number },
+  threshold?: { lcp?: number; inp?: number; cls?: number },
 ) {
   const result = await runLighthouseAudit(url, ["performance"], device);
 
@@ -25,15 +13,14 @@ export async function getCoreWebVitals(
     lcp: result.metrics["largest-contentful-paint"],
     fcp: result.metrics["first-contentful-paint"],
     cls: result.metrics["cumulative-layout-shift"],
-    tbt: result.metrics["total-blocking-time"], // TBT is used as FID proxy in lab tests
+    tbt: result.metrics["total-blocking-time"], // TBT is used as INP proxy in lab tests (INP replaced FID as a Core Web Vital)
   };
 
-  // Check against thresholds if provided
   const thresholdResults = threshold
     ? {
-        lcp: threshold.lcp ? (coreWebVitals.lcp?.value || 0) / 1000 <= threshold.lcp : null,
-        fid: threshold.fid ? (coreWebVitals.tbt?.value || 0) <= threshold.fid : null,
-        cls: threshold.cls ? (coreWebVitals.cls?.value || 0) <= threshold.cls : null,
+        lcp: threshold.lcp != null ? (coreWebVitals.lcp?.value || 0) / 1000 <= threshold.lcp : null,
+        inp: threshold.inp != null ? (coreWebVitals.tbt?.value || 0) <= threshold.inp : null,
+        cls: threshold.cls != null ? (coreWebVitals.cls?.value || 0) <= threshold.cls : null,
       }
     : null;
 
@@ -41,6 +28,7 @@ export async function getCoreWebVitals(
     url: result.url,
     device: result.device,
     coreWebVitals,
+    allMetrics: result.metrics,
     thresholdResults,
     fetchTime: result.fetchTime,
   };
@@ -78,61 +66,6 @@ export async function compareMobileDesktop(url: string, categories?: string[], t
   }
 
   return comparison;
-}
-
-// Helper function to check performance budget
-export async function checkPerformanceBudget(
-  url: string,
-  device: "desktop" | "mobile" = "desktop",
-  budget: {
-    performanceScore?: number;
-    firstContentfulPaint?: number;
-    largestContentfulPaint?: number;
-    totalBlockingTime?: number;
-    cumulativeLayoutShift?: number;
-    speedIndex?: number;
-  },
-) {
-  const result = await runLighthouseAudit(url, ["performance"], device);
-
-  const budgetResults = {
-    url: result.url,
-    device: result.device,
-    fetchTime: result.fetchTime,
-    results: {} as Record<string, { actual: number; budget: number; passed: boolean; unit: string }>,
-    overallPassed: true,
-  };
-
-  // Check performance score
-  if (budget.performanceScore !== undefined) {
-    const actual = result.categories.performance?.score || 0;
-    const passed = actual >= budget.performanceScore;
-    budgetResults.results.performanceScore = {
-      actual,
-      budget: budget.performanceScore,
-      passed,
-      unit: "score",
-    };
-    if (!passed) budgetResults.overallPassed = false;
-  }
-
-  // Check metrics using constants
-  for (const { key, metric, unit } of BUDGET_METRIC_MAPPINGS) {
-    const budgetValue = budget[key as keyof typeof budget];
-    if (budgetValue !== undefined) {
-      const actual = result.metrics[metric]?.value || 0;
-      const passed = actual <= budgetValue;
-      budgetResults.results[key] = {
-        actual,
-        budget: budgetValue,
-        passed,
-        unit,
-      };
-      if (!passed) budgetResults.overallPassed = false;
-    }
-  }
-
-  return budgetResults;
 }
 
 // Helper function to get LCP optimization opportunities

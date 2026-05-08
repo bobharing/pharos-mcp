@@ -1,37 +1,21 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { securityAuditSchema } from "../schemas.js";
-import { getSecurityAudit } from "../lighthouse-analysis.js";
-
-interface StructuredResponse {
-  summary: string;
-  data: Record<string, unknown>;
-  recommendations?: string[];
-}
-
-function createStructuredSecurity(
-  type: string,
-  url: string,
-  device: string,
-  data: Record<string, unknown>,
-  recommendations?: string[],
-): StructuredResponse {
-  return {
-    summary: `${type} analysis for ${url} on ${device}`,
-    data,
-    ...(recommendations && { recommendations }),
-  };
-}
+import { securityAuditSchema } from "../schemas.ts";
+import { getSecurityAudit } from "../lib/analysis.ts";
+import { READ_ONLY_OPEN } from "./annotations.ts";
+import { successResponse, errorResponse } from "../lib/responses.ts";
 
 export function registerSecurityTools(server: McpServer) {
   server.registerTool(
-    "get_security_audit",
+    "pharos_security",
     {
-      description: "Perform security audit checking HTTPS, CSP, and other security measures",
+      description:
+        "Security audit checking HTTPS, mixed-content, HSTS, and CSP effectiveness. Uses Lighthouse best-practices category. Note: 'https', 'mixed-content', and 'hsts' checks all evaluate via the same Lighthouse is-on-https audit.",
       inputSchema: securityAuditSchema,
+      annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, checks }) => {
+    async ({ url, checks }) => {
       try {
-        const result = await getSecurityAudit(url, device, checks);
+        const result = await getSecurityAudit(url, checks);
 
         const audits = result.audits.map((audit) => {
           const auditItem = audit as {
@@ -41,8 +25,10 @@ export function registerSecurityTools(server: McpServer) {
             score: number | null;
             scoreDisplayMode?: string;
             displayValue?: string;
+            details?: { items?: unknown[] };
           };
 
+          const findings = auditItem.details?.items ?? [];
           return {
             id: auditItem.id,
             title: auditItem.title,
@@ -50,58 +36,22 @@ export function registerSecurityTools(server: McpServer) {
             score: auditItem.score !== null ? Math.round((auditItem.score || 0) * 100) : null,
             displayValue: auditItem.displayValue || "N/A",
             status: auditItem.score === 1 ? "pass" : auditItem.score === 0 ? "fail" : "warning",
+            ...(findings.length > 0 ? { findings } : {}),
           };
         });
 
-        const structuredResult = createStructuredSecurity(
-          "Security Audit",
-          result.url,
-          result.device,
-          {
-            overallScore: result.overallScore,
-            audits,
-            auditCount: audits.length,
-            passedAudits: audits.filter((a) => a.status === "pass").length,
-            failedAudits: audits.filter((a) => a.status === "fail").length,
-            fetchTime: result.fetchTime,
-          },
-          [
-            "Ensure all resources are served over HTTPS",
-            "Implement Content Security Policy (CSP) headers to prevent XSS attacks",
-            "Keep all dependencies and libraries up to date",
-            "Use rel=noopener for external links to prevent window.opener attacks",
-            "Enable HTTP Strict Transport Security (HSTS) headers",
-          ],
-        );
-
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(structuredResult, null, 2),
-            },
-          ],
-        };
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(
-                {
-                  error: "Security audit failed",
-                  url,
-                  device: device || "desktop",
-                  message: errorMessage,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-          isError: true,
-        };
+        return successResponse({
+          url: result.url,
+          overallScore: result.overallScore,
+          audits,
+          auditCount: audits.length,
+          passedAudits: audits.filter((a) => a.status === "pass").length,
+          warningAudits: audits.filter((a) => a.status === "warning").length,
+          failedAudits: audits.filter((a) => a.status === "fail").length,
+          fetchTime: result.fetchTime,
+        });
+      } catch (error) {
+        return errorResponse("Security audit failed", { url }, error);
       }
     },
   );

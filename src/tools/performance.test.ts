@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, mock } from "bun:test";
 import { registerPerformanceTools } from "./performance";
 
 // Mock the MCP server
 const mockServer = {
-  registerTool: vi.fn(),
+  registerTool: mock(),
 };
 
 describe("tools/performance", () => {
@@ -14,14 +13,13 @@ describe("tools/performance", () => {
     }).not.toThrow();
 
     // Verify that tools were registered
-    expect(mockServer.registerTool).toHaveBeenCalledTimes(5); // get_performance_score, get_core_web_vitals, compare_mobile_desktop, check_performance_budget, get_lcp_opportunities
+    expect(mockServer.registerTool).toHaveBeenCalledTimes(4); // pharos_performance, pharos_core_web_vitals, pharos_compare_devices, pharos_lcp
 
     // Verify tool names
     const toolCalls = mockServer.registerTool.mock.calls;
-    expect(toolCalls[0][0]).toBe("get_performance_score");
-    expect(toolCalls[1][0]).toBe("get_core_web_vitals");
-    expect(toolCalls[2][0]).toBe("compare_mobile_desktop");
-    expect(toolCalls[3][0]).toBe("check_performance_budget");
-    expect(toolCalls[4][0]).toBe("get_lcp_opportunities");
+    expect(toolCalls[0][0]).toBe("pharos_performance");
+    expect(toolCalls[1][0]).toBe("pharos_core_web_vitals");
+    expect(toolCalls[2][0]).toBe("pharos_compare_devices");
+    expect(toolCalls[3][0]).toBe("pharos_lcp");
   });
 });

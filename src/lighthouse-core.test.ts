@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import {
   getScreenEmulation,
   buildLighthouseOptions,
   filterAuditsByCategory,
   formatCategoryScores,
   extractKeyMetrics,
-} from "./lighthouse-core";
-import { SCREEN_DIMENSIONS } from "./lighthouse-constants";
+} from "./lib/lighthouse";
+import { SCREEN_DIMENSIONS } from "./lib/constants";
 
 describe("lighthouse-core utilities", () => {
   describe("getScreenEmulation", () => {
@@ -44,7 +44,7 @@ describe("lighthouse-core utilities", () => {
       const options = buildLighthouseOptions(port, device);
 
       expect(options).toMatchObject({
-        logLevel: "info",
+        logLevel: "error",
         output: "json",
         port: 9222,
         formFactor: "desktop",

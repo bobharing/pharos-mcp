@@ -1,5 +1,5 @@
-import { runRawLighthouseAudit } from "./lighthouse-core.js";
-import { SECURITY_AUDITS, DEFAULTS } from "./lighthouse-constants.js";
+import { runRawLighthouseAudit } from "./lighthouse.ts";
+import { SECURITY_AUDITS, DEFAULTS } from "./constants.ts";
 
 // Helper function to find unused JavaScript
 export async function findUnusedJavaScript(
@@ -43,10 +43,19 @@ export async function findUnusedJavaScript(
   };
 }
 
+// Maps Lighthouse's network-requests resourceType values to the schema enum values
+const RESOURCE_TYPE_MAP: Record<string, string> = {
+  image: "images",
+  script: "javascript",
+  stylesheet: "css",
+  font: "fonts",
+};
+
 // Helper function to categorize resource type
 function categorizeResourceType(item: Record<string, unknown>): string {
   if (item.resourceType) {
-    return (item.resourceType as string).toLowerCase();
+    const normalized = (item.resourceType as string).toLowerCase();
+    return RESOURCE_TYPE_MAP[normalized] ?? "other";
   }
 
   if (item.mimeType) {
@@ -129,13 +138,26 @@ export async function analyzeResources(
 }
 
 // Helper function to get security audit
-export async function getSecurityAudit(url: string, device: "desktop" | "mobile" = "desktop", checks?: string[]) {
-  const runnerResult = await runRawLighthouseAudit(url, ["best-practices"], device);
+export async function getSecurityAudit(url: string, checks?: string[]) {
+  const runnerResult = await runRawLighthouseAudit(url, ["best-practices"]);
   const { lhr } = runnerResult;
+
+  // Maps user-facing check names to the Lighthouse audit IDs they correspond to.
+  // Note: mixed-content and hsts are both evaluated by the is-on-https audit in Lighthouse 13.
+  const CHECKS_TO_AUDIT_IDS: Record<string, string[]> = {
+    https: ["is-on-https"],
+    "mixed-content": ["is-on-https"],
+    hsts: ["is-on-https"],
+    csp: ["csp-xss"],
+  };
+
+  const allowedAuditIds = checks
+    ? new Set(checks.flatMap((check) => CHECKS_TO_AUDIT_IDS[check] ?? []))
+    : null;
 
   const auditResults = SECURITY_AUDITS.map((auditId) => {
     const audit = lhr.audits[auditId];
-    if (audit && (!checks || checks.some((check) => auditId.includes(check)))) {
+    if (audit && (!allowedAuditIds || allowedAuditIds.has(auditId))) {
       return {
         id: auditId,
         title: audit.title,
@@ -143,20 +165,64 @@ export async function getSecurityAudit(url: string, device: "desktop" | "mobile"
         score: audit.score,
         scoreDisplayMode: audit.scoreDisplayMode,
         displayValue: audit.displayValue,
+        details: audit.details,
       };
     }
     return null;
   }).filter(Boolean);
 
-  const overallScore =
-    auditResults.reduce((sum, audit: { score: number | null } | null) => sum + (audit?.score || 0), 0) /
-    auditResults.length;
+  const passedCount = auditResults.filter((audit) => audit?.score === 1).length;
+  const overallScore = auditResults.length > 0 ? passedCount / auditResults.length : 0;
+
+  return {
+    url: lhr.finalDisplayedUrl,
+    overallScore: Math.round(overallScore * 100),
+    audits: auditResults,
+    fetchTime: lhr.fetchTime,
+  };
+}
+
+// Audit IDs belonging to the agentic-browsing Lighthouse category
+const AGENTIC_AUDIT_IDS = [
+  "agent-accessibility-tree",
+  "llms-txt",
+  "webmcp-form-coverage",
+  "webmcp-registered-tools",
+  "webmcp-schema-validity",
+  "cumulative-layout-shift",
+] as const;
+
+// Helper function to run the agentic-browsing audit
+export async function getAgenticAudit(url: string, device: "desktop" | "mobile" = "desktop") {
+  const runnerResult = await runRawLighthouseAudit(url, ["agentic-browsing"], device);
+  const { lhr } = runnerResult;
+
+  const auditResults = AGENTIC_AUDIT_IDS.map((auditId) => {
+    const audit = lhr.audits[auditId];
+    if (!audit) return null;
+    return {
+      id: auditId,
+      title: audit.title,
+      description: audit.description,
+      score: audit.score,
+      scoreDisplayMode: audit.scoreDisplayMode,
+      displayValue: audit.displayValue,
+      details: audit.details,
+    };
+  }).filter(Boolean);
+
+  const scoredAudits = auditResults.filter((a) => a?.score !== null && a?.scoreDisplayMode !== "informative");
+  const passedCount = scoredAudits.filter((a) => a?.score === 1).length;
+  const overallScore = scoredAudits.length > 0 ? passedCount / scoredAudits.length : 0;
 
   return {
     url: lhr.finalDisplayedUrl,
     device,
     overallScore: Math.round(overallScore * 100),
     audits: auditResults,
+    auditCount: auditResults.length,
+    passedAudits: scoredAudits.filter((a) => a?.score === 1).length,
+    failedAudits: scoredAudits.filter((a) => a?.score === 0).length,
     fetchTime: lhr.fetchTime,
   };
 }
