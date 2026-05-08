@@ -9,7 +9,7 @@ export function registerSecurityTools(server: McpServer) {
     "pharos_security",
     {
       description:
-        "Security audit: HTTPS, mixed-content, HSTS, and CSP. Instant if pharos_audit already ran. Note: https/mixed-content/hsts all map to the same is-on-https audit.",
+        "Security audit: HTTPS, mixed-content, HSTS, and CSP. Reads from cache (no new Lighthouse run) if pharos_audit already ran. Note: https/mixed-content/hsts all map to the same is-on-https audit.",
       inputSchema: securityAuditSchema,
       annotations: READ_ONLY_OPEN,
     },

@@ -25,19 +25,19 @@ const server = new McpServer(
   {
     instructions: `Pharos: Lighthouse-powered web auditing. Results cached 10 min per URL/device/throttling (cold audits: 5-15s).
 
-CACHE STRATEGY: pharos_audit warms the full cache — all subsequent tools for the same URL/device are instant. Always call pharos_audit first unless you only need one specific check.
+CACHE STRATEGY: pharos_audit runs one Lighthouse audit and stores the full result. All subsequent tools for the same URL/device read from that stored result — no new Lighthouse run. Always call pharos_audit first unless you only need one specific check.
 
 WORKFLOW:
-1. pharos_audit — warms cache + returns all category scores (start here)
-2. pharos_performance — instant after step 1; performance score + budget check
-3. pharos_core_web_vitals — instant after step 1; LCP/INP/CLS thresholds
-4. pharos_compare_devices — runs both devices sequentially (10-30s cold; instant if cached)
-5. pharos_security — instant after step 1; HTTPS, CSP checks
-6. pharos_resources — instant after step 1; resource breakdown by type/size
-7. pharos_unused_js — instant after step 1; find removable JavaScript
-8. pharos_lcp — instant after step 1; LCP optimization opportunities
-9. pharos_third_parties — instant after step 1; third-party entity breakdown by category with byte/blocking impact
-10. pharos_agentic — instant after step 1; agent-readiness audit`,
+1. pharos_audit — runs Lighthouse + caches result; returns all category scores (start here)
+2. pharos_performance — reads from cache after step 1; performance score + budget check
+3. pharos_core_web_vitals — reads from cache after step 1; LCP/INP/CLS thresholds
+4. pharos_compare_devices — runs both devices sequentially (10-30s cold; reads from cache if pharos_audit already ran)
+5. pharos_security — reads from cache after step 1; HTTPS, CSP checks
+6. pharos_resources — reads from cache after step 1; resource breakdown by type/size
+7. pharos_unused_js — reads from cache after step 1; find removable JavaScript
+8. pharos_lcp — reads from cache after step 1; LCP optimization opportunities
+9. pharos_third_parties — reads from cache after step 1; third-party entity breakdown by category with byte/blocking impact
+10. pharos_agentic — reads from cache after step 1; agent-readiness audit`,
   },
 );
 
