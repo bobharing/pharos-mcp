@@ -221,7 +221,7 @@ The HTTP transport is stateless — each request is independent, which is correc
 
 ## 🔧 Available Tools
 
-Pharos exposes 9 tools with the `pharos_` prefix, all marked read-only:
+Pharos exposes 10 tools with the `pharos_` prefix, all marked read-only:
 
 ### 🏁 Audit Tools
 
@@ -240,17 +240,23 @@ Pharos exposes 9 tools with the `pharos_` prefix, all marked read-only:
 
 ### 🔍 Analysis Tools
 
-| Tool                    | Description                                                                | Parameters                                                    |
-| ----------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `pharos_unused_js`      | Find removable JavaScript by byte count                                    | `url`, `device?`, `forceFresh?`, `minBytes?`                  |
-| `pharos_resources`      | Full resource breakdown by type and size                                   | `url`, `device?`, `forceFresh?`, `resourceTypes?`, `minSize?` |
-| `pharos_third_parties`  | Third-party entity breakdown by category with byte and blocking-time impact | `url`, `device?`, `throttling?`, `forceFresh?`                |
+| Tool                   | Description                                                                 | Parameters                                                                   |
+| ---------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `pharos_unused_js`     | Find removable JavaScript by byte count                                     | `url`, `device?`, `throttling?`, `forceFresh?`, `minBytes?`                  |
+| `pharos_resources`     | Full resource breakdown by type and size                                    | `url`, `device?`, `throttling?`, `forceFresh?`, `resourceTypes?`, `minSize?` |
+| `pharos_third_parties` | Third-party entity breakdown by category with byte and blocking-time impact | `url`, `device?`, `throttling?`, `forceFresh?`, `includeDetails?`            |
 
 ### 🔒 Security Tools
 
-| Tool              | Description                                | Parameters                      |
-| ----------------- | ------------------------------------------ | ------------------------------- |
-| `pharos_security` | HTTPS, mixed-content, HSTS, and CSP checks | `url`, `forceFresh?`, `checks?` |
+| Tool              | Description                                | Parameters                                 |
+| ----------------- | ------------------------------------------ | ------------------------------------------ |
+| `pharos_security` | HTTPS, mixed-content, HSTS, and CSP checks | `url`, `device?`, `forceFresh?`, `checks?` |
+
+### 🤖 Agentic Tools
+
+| Tool             | Description                                                                    | Parameters                                                        |
+| ---------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `pharos_agentic` | Agent-readiness audit: accessibility tree, llms.txt, WebMCP tools/forms/schema | `url`, `device?`, `throttling?`, `forceFresh?`, `includeDetails?` |
 
 ## 💬 Available Prompts
 

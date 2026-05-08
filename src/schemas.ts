@@ -133,6 +133,7 @@ export const securityAuditSchema = z.object({
 export const agenticAuditSchema = z.object({
   url: baseSchemas.url,
   device: baseSchemas.device,
+  throttling: baseSchemas.throttling,
   forceFresh: baseSchemas.forceFresh,
   includeDetails: baseSchemas.includeDetails,
 });

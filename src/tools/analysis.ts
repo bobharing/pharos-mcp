@@ -113,9 +113,9 @@ export function registerAnalysisTools(server: McpServer) {
       inputSchema: thirdPartySchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, throttling, forceFresh }) => {
+    async ({ url, device, throttling, forceFresh, includeDetails }) => {
       try {
-        const result = await getThirdPartyAnalysis(url, device, throttling, { forceFresh });
+        const result = await getThirdPartyAnalysis(url, device, throttling, { forceFresh }, includeDetails);
 
         return successResponse(
           {

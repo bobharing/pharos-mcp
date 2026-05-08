@@ -213,8 +213,8 @@ const AGENTIC_AUDIT_IDS = [
 ] as const;
 
 // Helper function to run the agentic-browsing audit
-export async function getAgenticAudit(url: string, device: "desktop" | "mobile" = "desktop", options?: { forceFresh?: boolean }) {
-  const runnerResult = await runRawLighthouseAudit(url, ["agentic-browsing"], device, false, options);
+export async function getAgenticAudit(url: string, device: "desktop" | "mobile" = "desktop", throttling = false, options?: { forceFresh?: boolean }) {
+  const runnerResult = await runRawLighthouseAudit(url, ["agentic-browsing"], device, throttling, options);
   const { lhr } = runnerResult;
 
   const auditResults = AGENTIC_AUDIT_IDS.map((auditId) => {
@@ -255,6 +255,7 @@ export async function getThirdPartyAnalysis(
   device: "desktop" | "mobile" = "desktop",
   throttling = false,
   options?: { forceFresh?: boolean },
+  includeDetails = false,
 ) {
   const runnerResult = await runRawLighthouseAudit(url, undefined, device, throttling, options);
   const { lhr } = runnerResult;
@@ -301,7 +302,7 @@ export async function getThirdPartyAnalysis(
     string,
     Array<{
       name: string;
-      origins: string[];
+      origins?: string[];
       transferKB: number;
       blockingTimeMs: number;
       auditsPresent: string[];
@@ -316,7 +317,7 @@ export async function getThirdPartyAnalysis(
     const impact = entityImpact[entity.name] ?? { transferBytes: 0, blockingTimeMs: 0, auditIds: [] };
     groupedByCategory[category].push({
       name: entity.name,
-      origins: entity.origins,
+      ...(includeDetails ? { origins: entity.origins } : {}),
       transferKB: Math.round((impact.transferBytes / 1024) * 100) / 100,
       blockingTimeMs: impact.blockingTimeMs,
       auditsPresent: impact.auditIds,
