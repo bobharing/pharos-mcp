@@ -45,7 +45,7 @@ describe("cache", () => {
       const result = makeFakeResult();
       const key = buildCacheKey("https://example.com", "desktop", false);
       setCachedResult(key, result);
-      expect(getCachedResult(key)).toBe(result);
+      expect(getCachedResult(key)).toEqual(result);
     });
 
     it("returns null and evicts entry after TTL expires", () => {
@@ -69,7 +69,7 @@ describe("cache", () => {
       const key = buildCacheKey("https://example.com", "desktop", false);
       setCachedResult(key, result);
       // Fresh entry should still be present within default TTL
-      expect(getCachedResult(key)).toBe(result);
+      expect(getCachedResult(key)).toEqual(result);
     });
   });
 

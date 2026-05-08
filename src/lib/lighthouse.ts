@@ -99,15 +99,21 @@ export async function runRawLighthouseAudit(
 
   // Skip cache for profile/authenticated sessions
   const useCache = !disableStorageReset;
-  if (useCache) {
-    const key = buildCacheKey(url, device, throttling);
-    if (!options?.forceFresh) {
-      const cached = getCachedResult(key);
-      if (cached) return cached;
-    }
+  const cacheKey = useCache ? buildCacheKey(url, device, throttling) : null;
+
+  if (cacheKey && !options?.forceFresh) {
+    const cached = getCachedResult(cacheKey);
+    if (cached) return cached;
   }
 
   const runAudit = async () => {
+    // Re-check cache after acquiring the lock — a queued request may have already
+    // completed the same audit while we were waiting.
+    if (cacheKey && !options?.forceFresh) {
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+    }
+
     const chrome = remoteDebuggingPort ? null : await launchChrome();
     if (chrome) activeChromeInstances.add(chrome);
     const port = remoteDebuggingPort ?? chrome?.port;
@@ -127,9 +133,26 @@ export async function runRawLighthouseAudit(
         throw new Error("Failed to run Lighthouse audit");
       }
 
-      if (useCache) {
-        const key = buildCacheKey(url, device, throttling);
-        setCachedResult(key, runnerResult);
+      if (cacheKey) {
+        // Only cache the LHR object — artifacts and report are large and not used downstream.
+        // LHR is designed to be JSON-serializable; artifacts can be 50-200 MB and may have circular refs.
+        // Strip fields that are never read by any tool to reduce cache memory (~30-50% per entry).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rawLhr = runnerResult.lhr as any;
+        const {
+          fullPageScreenshot: _fps,
+          i18n: _i18n,
+          timing: _timing,
+          categoryGroups: _cg,
+          configSettings: _cs,
+          ...lhrToCache
+        } = rawLhr;
+        // Strip iconDataURL from stackPacks — base64 icons are not renderable in MCP
+        if (lhrToCache.stackPacks) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          lhrToCache.stackPacks = lhrToCache.stackPacks.map(({ iconDataURL: _icon, ...sp }: any) => sp);
+        }
+        setCachedResult(cacheKey, { lhr: lhrToCache });
       }
 
       return runnerResult;
@@ -141,21 +164,35 @@ export async function runRawLighthouseAudit(
     }
   };
 
+  // Serialize all audits to avoid concurrent Chrome/Lighthouse conflicts and ensure
+  // consistent results (parallel audits can skew metrics due to shared system resources).
   return withAuditLock(runAudit);
 }
 
 // Helper function to filter audits by category
-export function filterAuditsByCategory(lhr: LighthouseResult["lhr"], categoryKey: string) {
+export function filterAuditsByCategory(
+  lhr: LighthouseResult["lhr"],
+  categoryKey: string,
+  includeDescriptions = false,
+  stackPacks?: Array<{ descriptions: Record<string, string> }>,
+) {
   return Object.entries(lhr.audits)
     .filter(([key]) => lhr.categories[categoryKey]?.auditRefs?.some((ref: { id: string }) => ref.id === key))
-    .map(([key, audit]) => ({
-      id: key,
-      title: audit.title,
-      description: audit.description,
-      score: audit.score,
-      scoreDisplayMode: audit.scoreDisplayMode,
-      displayValue: audit.displayValue,
-    }));
+    .map(([key, audit]) => {
+      const frameworkTip =
+        includeDescriptions && stackPacks
+          ? stackPacks.find((sp) => sp.descriptions[key])?.descriptions[key]
+          : undefined;
+      return {
+        id: key,
+        title: audit.title,
+        ...(includeDescriptions ? { description: audit.description } : {}),
+        ...(frameworkTip ? { frameworkTip } : {}),
+        score: audit.score,
+        scoreDisplayMode: audit.scoreDisplayMode,
+        displayValue: audit.displayValue,
+      };
+    });
 }
 
 // Helper function to format category scores from LHR
@@ -213,6 +250,8 @@ export async function runLighthouseAudit(
     device,
     categories: formatCategoryScores(lhr),
     metrics: extractKeyMetrics(lhr),
+    ...(lhr.runWarnings?.length ? { warnings: lhr.runWarnings } : {}),
+    ...(lhr.runtimeError ? { runtimeError: lhr.runtimeError } : {}),
   };
 }
 

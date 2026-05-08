@@ -11,13 +11,13 @@ export function registerPerformanceTools(server: McpServer) {
     "pharos_performance",
     {
       description:
-        "Get detailed performance score and metrics. Optionally check against a budget. Use after pharos_audit if you need deeper performance data or budget validation.",
+        "Performance score and metrics. Instant if pharos_audit already ran for this URL. Optionally validate against a budget.",
       inputSchema: performanceSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, forceFresh, budget }) => {
+    async ({ url, device, throttling, forceFresh, budget }) => {
       try {
-        const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, false, { forceFresh });
+        const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, throttling, { forceFresh });
         const { lhr } = runnerResult;
 
         const formattedCategories = formatCategoryScores(lhr);
@@ -59,7 +59,7 @@ export function registerPerformanceTools(server: McpServer) {
           data.overallPassed = overallPassed;
         }
 
-        return successResponse(data);
+        return successResponse(data, lhr.runWarnings?.length ? lhr.runWarnings : undefined, lhr.runtimeError);
       } catch (error) {
         return errorResponse("Performance analysis failed", { url, device: device || "desktop" }, error);
       }
@@ -70,13 +70,13 @@ export function registerPerformanceTools(server: McpServer) {
     "pharos_core_web_vitals",
     {
       description:
-        "Get Core Web Vitals (LCP, FCP, CLS, TBT) with optional threshold checking. Use when you need to validate against specific performance targets. Threshold parameters: lcp (seconds), inp (milliseconds, evaluated via TBT as a lab proxy — INP replaced FID as a Core Web Vital), cls (unitless score).",
+        "Core Web Vitals (LCP, FCP, CLS, TBT) with optional threshold checking. Instant if pharos_audit already ran. lcp: seconds, inp: ms (TBT as lab proxy), cls: unitless.",
       inputSchema: coreWebVitalsSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, forceFresh, includeDetails, threshold }) => {
+    async ({ url, device, throttling, forceFresh, includeDetails, threshold }) => {
       try {
-        const result = await getCoreWebVitals(url, device, threshold, { forceFresh });
+        const result = await getCoreWebVitals(url, device, threshold, throttling, { forceFresh });
 
         const coreWebVitals: Record<string, { title: string; value: string; score: number | null | undefined }> = {};
         for (const [key, metric] of Object.entries(result.coreWebVitals)) {
@@ -87,14 +87,18 @@ export function registerPerformanceTools(server: McpServer) {
           };
         }
 
-        return successResponse({
-          url: result.url,
-          device: result.device,
-          coreWebVitals,
-          ...(includeDetails ? { allMetrics: result.allMetrics } : {}),
-          thresholdResults: result.thresholdResults || {},
-          fetchTime: result.fetchTime,
-        });
+        return successResponse(
+          {
+            url: result.url,
+            device: result.device,
+            coreWebVitals,
+            ...(includeDetails ? { allMetrics: result.allMetrics } : {}),
+            thresholdResults: result.thresholdResults || {},
+            fetchTime: result.fetchTime,
+          },
+          result.warnings?.length ? result.warnings : undefined,
+          result.runtimeError,
+        );
       } catch (error) {
         return errorResponse("Core Web Vitals analysis failed", { url, device: device || "desktop" }, error);
       }
@@ -105,7 +109,7 @@ export function registerPerformanceTools(server: McpServer) {
     "pharos_compare_devices",
     {
       description:
-        "Compare performance between mobile and desktop. Runs two sequential audits — takes 10-30 seconds.",
+        "Compare mobile vs desktop performance. Runs both devices sequentially (10-30s cold); instant per device if already cached from pharos_audit.",
       inputSchema: compareDevicesSchema,
       annotations: READ_ONLY_OPEN,
     },
@@ -124,11 +128,15 @@ export function registerPerformanceTools(server: McpServer) {
           };
         }
 
-        return successResponse({
-          url: result.url,
-          differences,
-          ...(includeDetails ? { mobile: result.mobile, desktop: result.desktop } : {}),
-        });
+        return successResponse(
+          {
+            url: result.url,
+            differences,
+            ...(includeDetails ? { mobile: result.mobile, desktop: result.desktop } : {}),
+          },
+          result.warnings?.length ? result.warnings : undefined,
+          result.runtimeError,
+        );
       } catch (error) {
         return errorResponse("Mobile vs Desktop comparison failed", { url }, error);
       }
@@ -138,13 +146,13 @@ export function registerPerformanceTools(server: McpServer) {
   server.registerTool(
     "pharos_lcp",
     {
-      description: "Get LCP optimization opportunities. Use when LCP exceeds thresholds.",
+      description: "LCP value and optimization opportunities. Instant if pharos_audit already ran for this URL.",
       inputSchema: lcpOpportunitiesSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, forceFresh, threshold, includeDetails }) => {
+    async ({ url, device, throttling, forceFresh, threshold, includeDetails }) => {
       try {
-        const result = await getLcpOpportunities(url, device, threshold, { forceFresh });
+        const result = await getLcpOpportunities(url, device, threshold, throttling, { forceFresh });
 
         const opportunities = (result.opportunities || []).map((opp) => {
           const o = opp as {
@@ -159,15 +167,19 @@ export function registerPerformanceTools(server: McpServer) {
           return includeDetails ? { ...base, description: o.description, numericValue: o.numericValue } : base;
         });
 
-        return successResponse({
-          url: result.url,
-          device: result.device,
-          lcpValue: result.lcpValue,
-          threshold: result.threshold,
-          needsImprovement: result.needsImprovement,
-          opportunities,
-          fetchTime: result.fetchTime,
-        });
+        return successResponse(
+          {
+            url: result.url,
+            device: result.device,
+            lcpValue: result.lcpValue,
+            threshold: result.threshold,
+            needsImprovement: result.needsImprovement,
+            opportunities,
+            fetchTime: result.fetchTime,
+          },
+          result.warnings?.length ? result.warnings : undefined,
+          result.runtimeError,
+        );
       } catch (error) {
         return errorResponse("LCP opportunities analysis failed", { url, device: device || "desktop" }, error);
       }

@@ -14,11 +14,11 @@ export function registerAuditTools(server: McpServer) {
     "pharos_audit",
     {
       description:
-        "STEP 1 — Run a comprehensive Lighthouse audit. Returns category scores and key metrics. Start here for a full overview, then drill into specific areas with other pharos_* tools. Use focusCategory or includeDetails to get per-audit breakdowns in the same call.",
+        "Run first: warms the full cache so all other pharos_* tools are instant (pass the same device + throttling values). Returns all category scores and key metrics. Use focusCategory or includeDetails for per-audit breakdowns. Add includeDescriptions for audit explanation text (verbose).",
       inputSchema: auditParamsSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, categories, device, throttling, forceFresh, includeDetails, focusCategory }) => {
+    async ({ url, categories, device, throttling, forceFresh, includeDetails, includeDescriptions, focusCategory }) => {
       try {
         // Ensure focusCategory is included in the Lighthouse run even if not in categories
         const effectiveCategories = focusCategory
@@ -51,16 +51,26 @@ export function registerAuditTools(server: McpServer) {
           fetchTime: lhr.fetchTime,
         };
 
+        // Phase 3: detected frameworks from stack packs
+        if (lhr.stackPacks?.length) {
+          data.detectedFrameworks = lhr.stackPacks.map((sp) => sp.title);
+        }
+
+        // Phase 4: benchmark index for score contextualization
+        if (lhr.environment?.benchmarkIndex !== undefined) {
+          data.benchmarkIndex = lhr.environment.benchmarkIndex;
+        }
+
         if (includeDetails || focusCategory) {
           const targetCategories = focusCategory ? [focusCategory] : Object.keys(lhr.categories);
           const detailedAudits: Record<string, unknown> = {};
           for (const cat of targetCategories) {
-            detailedAudits[cat] = filterAuditsByCategory(lhr, cat);
+            detailedAudits[cat] = filterAuditsByCategory(lhr, cat, includeDescriptions, lhr.stackPacks);
           }
           data.detailedAudits = detailedAudits;
         }
 
-        return successResponse(data);
+        return successResponse(data, lhr.runWarnings?.length ? lhr.runWarnings : undefined, lhr.runtimeError);
       } catch (error) {
         return errorResponse("Lighthouse audit failed", { url, device: device || "desktop" }, error);
       }

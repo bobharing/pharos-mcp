@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, mock, beforeEach } from "bun:test";
 import type { Mock } from "bun:test";
-import { findUnusedJavaScript, analyzeResources, getSecurityAudit } from "./lib/analysis";
+import { findUnusedJavaScript, analyzeResources, getSecurityAudit, getThirdPartyAnalysis } from "./lib/analysis";
 import * as lighthouseCore from "./lib/lighthouse";
 import { SECURITY_AUDITS, DEFAULTS } from "./lib/constants";
 
@@ -150,6 +150,20 @@ describe("lighthouse-analysis", () => {
 
       expect(result.items).toHaveLength(1);
     });
+
+    it("should forward throttling=true to runRawLighthouseAudit", async () => {
+      const mockLhr = {
+        finalDisplayedUrl: mockUrl,
+        fetchTime: mockFetchTime,
+        audits: { "unused-javascript": { details: { items: [] } } },
+      };
+
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
+
+      await findUnusedJavaScript(mockUrl, "mobile", DEFAULTS.MIN_UNUSED_JS_BYTES, true);
+
+      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["performance"], "mobile", true, undefined);
+    });
   });
 
   describe("analyzeResources", () => {
@@ -284,6 +298,20 @@ describe("lighthouse-analysis", () => {
         fetchTime: mockFetchTime,
       });
     });
+
+    it("should forward throttling=true to runRawLighthouseAudit", async () => {
+      const mockLhr = {
+        finalDisplayedUrl: mockUrl,
+        fetchTime: mockFetchTime,
+        audits: { "network-requests": { details: { items: [] } } },
+      };
+
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
+
+      await analyzeResources(mockUrl, "mobile", undefined, DEFAULTS.MIN_RESOURCE_SIZE_KB, true);
+
+      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["performance"], "mobile", true, undefined);
+    });
   });
 
   describe("getSecurityAudit", () => {
@@ -360,6 +388,145 @@ describe("lighthouse-analysis", () => {
 
       // Should be 50% (1 + 0) / 2 = 0.5 * 100 = 50
       expect(result.overallScore).toBe(50);
+    });
+
+    it("should forward device and throttling=true to runRawLighthouseAudit", async () => {
+      const mockLhr = { finalDisplayedUrl: mockUrl, fetchTime: mockFetchTime, audits: {} };
+
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
+
+      await getSecurityAudit(mockUrl, undefined, "mobile", true);
+
+      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["best-practices"], "mobile", true, undefined);
+    });
+  });
+
+  describe("getThirdPartyAnalysis", () => {
+    const mockEntities = [
+      { name: "First Party", isFirstParty: true, origins: ["https://example.com"] },
+      { name: "Google Analytics", category: "analytics", isFirstParty: false, origins: ["https://www.google-analytics.com"] },
+      { name: "Facebook Pixel", category: "advertising", isFirstParty: false, origins: ["https://connect.facebook.net"] },
+      { name: "Unknown CDN", isFirstParty: false, origins: ["https://cdn.example.org"] },
+    ];
+
+    it("should group third-party entities by category", async () => {
+      const mockLhr = {
+        finalDisplayedUrl: mockUrl,
+        fetchTime: mockFetchTime,
+        entities: mockEntities,
+        audits: {
+          "third-party-summary": {
+            details: {
+              items: [
+                { entity: "Google Analytics", transferSize: 51200, blockingTime: 120 },
+                { entity: "Facebook Pixel", transferSize: 30720, blockingTime: 80 },
+              ],
+            },
+          },
+        },
+      };
+
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
+
+      const result = await getThirdPartyAnalysis(mockUrl, "desktop");
+
+      expect(result.summary.firstPartyCount).toBe(1);
+      expect(result.summary.thirdPartyCount).toBe(3);
+      expect(result.categories["analytics"]).toBeDefined();
+      expect(result.categories["advertising"]).toBeDefined();
+      expect(result.categories["analytics"][0].name).toBe("Google Analytics");
+      expect(result.categories["analytics"][0].transferKB).toBeCloseTo(50, 0);
+      expect(result.categories["analytics"][0].blockingTimeMs).toBe(120);
+      expect(result.categories["advertising"][0].name).toBe("Facebook Pixel");
+    });
+
+    it("should aggregate totals correctly", async () => {
+      const mockLhr = {
+        finalDisplayedUrl: mockUrl,
+        fetchTime: mockFetchTime,
+        entities: mockEntities,
+        audits: {
+          "third-party-summary": {
+            details: {
+              items: [
+                { entity: "Google Analytics", transferSize: 102400, blockingTime: 200 },
+                { entity: "Facebook Pixel", transferSize: 51200, blockingTime: 100 },
+              ],
+            },
+          },
+        },
+      };
+
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
+
+      const result = await getThirdPartyAnalysis(mockUrl);
+
+      expect(result.summary.totalThirdPartyKB).toBeCloseTo(150, 0);
+      expect(result.summary.totalThirdPartyBlockingMs).toBe(300);
+    });
+
+    it("should handle no entities in LHR", async () => {
+      const mockLhr = {
+        finalDisplayedUrl: mockUrl,
+        fetchTime: mockFetchTime,
+        audits: {},
+      };
+
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
+
+      const result = await getThirdPartyAnalysis(mockUrl);
+
+      expect(result.summary.firstPartyCount).toBe(0);
+      expect(result.summary.thirdPartyCount).toBe(0);
+      expect(result.summary.totalThirdPartyKB).toBe(0);
+      expect(result.categories).toEqual({});
+    });
+
+    it("should include third-party-facades audit IDs in auditsPresent", async () => {
+      const mockLhr = {
+        finalDisplayedUrl: mockUrl,
+        fetchTime: mockFetchTime,
+        entities: [
+          { name: "YouTube", category: "video", isFirstParty: false, origins: ["https://www.youtube.com"] },
+        ],
+        audits: {
+          "third-party-summary": {
+            details: {
+              items: [{ entity: "YouTube", transferSize: 204800, blockingTime: 500 }],
+            },
+          },
+          "third-party-facades": {
+            details: {
+              items: [{ entity: "YouTube" }],
+            },
+          },
+        },
+      };
+
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
+
+      const result = await getThirdPartyAnalysis(mockUrl);
+
+      expect(result.categories["video"][0].auditsPresent).toContain("third-party-summary");
+      expect(result.categories["video"][0].auditsPresent).toContain("third-party-facades");
+    });
+
+    it("should pass through runWarnings and runtimeError", async () => {
+      const mockLhr = {
+        finalDisplayedUrl: mockUrl,
+        fetchTime: mockFetchTime,
+        entities: [],
+        audits: {},
+        runWarnings: ["Page loaded slowly"],
+        runtimeError: { code: "NO_FCP", message: "Page never painted" },
+      };
+
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
+
+      const result = await getThirdPartyAnalysis(mockUrl);
+
+      expect(result.warnings).toEqual(["Page loaded slowly"]);
+      expect(result.runtimeError).toEqual({ code: "NO_FCP", message: "Page never painted" });
     });
   });
 });

@@ -1,6 +1,6 @@
 import { LighthouseResult } from "../types.ts";
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 interface CacheEntry {
   lhr: LighthouseResult;
@@ -36,7 +36,9 @@ export function getCachedResult(key: string, ttlMs = CACHE_TTL_MS): LighthouseRe
 }
 
 export function setCachedResult(key: string, result: LighthouseResult): void {
-  cache.set(key, { lhr: result, timestamp: Date.now() });
+  // JSON round-trip: normalises non-cloneable Lighthouse internals into a plain
+  // object and ensures callers cannot mutate the stored copy.
+  cache.set(key, { lhr: JSON.parse(JSON.stringify(result)), timestamp: Date.now() });
 }
 
 export function clearCache(): void {

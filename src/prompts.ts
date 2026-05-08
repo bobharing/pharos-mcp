@@ -7,7 +7,7 @@ export function registerPrompts(server: McpServer) {
     "analyze-audit-results",
     {
       argsSchema: {
-        auditResults: z.string().describe("JSON audit results from Lighthouse"),
+        auditResults: z.string().describe("Lighthouse audit results (JSON)"),
         focusArea: z
           .enum(["performance", "accessibility", "seo", "best-practices"])
           .optional()
@@ -78,7 +78,7 @@ Please provide:
       argsSchema: {
         beforeAudit: z.string().describe("Lighthouse audit results before changes"),
         afterAudit: z.string().describe("Lighthouse audit results after changes"),
-        changesImplemented: z.string().optional().describe("Description of changes that were implemented"),
+        changesImplemented: z.string().optional().describe("Changes implemented"),
       },
     },
     ({ beforeAudit, afterAudit, changesImplemented }) => ({
@@ -114,7 +114,7 @@ Please provide:
     {
       argsSchema: {
         seoAudit: z.string().describe("SEO audit results from Lighthouse"),
-        websiteType: z.string().optional().describe("Type of website (e.g., e-commerce, blog, corporate)"),
+        websiteType: z.string().optional().describe("Site type (e.g. e-commerce, blog)"),
         targetAudience: z.string().optional().describe("Target audience or market"),
       },
     },
@@ -191,7 +191,7 @@ Please provide:
         userBase: z
           .string()
           .optional()
-          .describe("Information about the user base and their typical devices/connections"),
+          .describe("User base (devices/connections)"),
       },
     },
     ({ currentMetrics, businessGoals, userBase }) => ({
@@ -224,9 +224,9 @@ Please provide:
     "optimize-core-web-vitals",
     {
       argsSchema: {
-        coreWebVitals: z.string().describe("Core Web Vitals metrics and detailed breakdown"),
-        framework: z.string().optional().describe("Frontend framework or technology stack"),
-        constraints: z.string().optional().describe("Any technical or business constraints"),
+        coreWebVitals: z.string().describe("Core Web Vitals metrics"),
+        framework: z.string().optional().describe("Tech stack"),
+        constraints: z.string().optional().describe("Constraints"),
       },
     },
     ({ coreWebVitals, framework, constraints }) => ({
@@ -259,9 +259,9 @@ Please provide:
     "optimize-resources",
     {
       argsSchema: {
-        resourceAnalysis: z.string().describe("Resource analysis results from Lighthouse"),
+        resourceAnalysis: z.string().describe("Resource analysis results"),
         loadingStrategy: z.string().optional().describe("Current loading strategy (e.g., SPA, SSR, SSG)"),
-        criticalUserJourneys: z.string().optional().describe("Critical user journeys that need optimal performance"),
+        criticalUserJourneys: z.string().optional().describe("Critical user journeys"),
       },
     },
     ({ resourceAnalysis, loadingStrategy, criticalUserJourneys }) => ({

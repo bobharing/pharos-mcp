@@ -14,7 +14,7 @@ A Model Context Protocol (MCP) server that provides comprehensive web performanc
 - **📱 Mobile vs Desktop**: Comparative analysis across devices with throttling options
 - **⚡ Core Web Vitals**: LCP, INP, CLS monitoring with threshold checking
 - **🎯 Performance Budgets**: Custom performance thresholds and budget monitoring
-- **🗂️ Result Caching**: In-memory LHR cache (5-minute TTL) eliminates redundant Lighthouse runs for repeated tool calls on the same URL/device/throttling combination
+- **🗂️ Result Caching**: In-memory LHR cache (10-minute TTL) eliminates redundant Lighthouse runs for repeated tool calls on the same URL/device/throttling combination
 - **📚 Reference Resources**: Built-in guidelines and best practices for web performance, accessibility, SEO, and security
 
 ## 🛠️ Requirements
@@ -194,10 +194,10 @@ Follow the MCP install [guide](https://modelcontextprotocol.io/quickstart/user),
 
 ## 🗄️ Result Caching
 
-Pharos caches full Lighthouse results in memory to avoid redundant Chrome launches. Any two tool calls for the same `url` + `device` + `throttling` combination within a 5-minute window reuse the cached result automatically.
+Pharos caches full Lighthouse results in memory to avoid redundant Chrome launches. Any two tool calls for the same `url` + `device` + `throttling` combination within a 10-minute window reuse the cached result automatically.
 
 - **Cache key**: `url :: device :: throttling`
-- **TTL**: 5 minutes (lazy eviction on access)
+- **TTL**: 10 minutes (lazy eviction on access)
 - **Scope**: process-lifetime, cleared on server restart
 - **Profile mode**: caching is disabled when a Chrome profile is configured, since authenticated sessions produce user-specific results
 - **`forceFresh`**: pass `forceFresh: true` on any tool call to bypass the cache and store a fresh result for subsequent calls
@@ -240,15 +240,16 @@ Pharos exposes 9 tools with the `pharos_` prefix, all marked read-only:
 
 ### 🔍 Analysis Tools
 
-| Tool               | Description                              | Parameters                                                    |
-| ------------------ | ---------------------------------------- | ------------------------------------------------------------- |
-| `pharos_unused_js` | Find removable JavaScript by byte count  | `url`, `device?`, `forceFresh?`, `minBytes?`                  |
-| `pharos_resources` | Full resource breakdown by type and size | `url`, `device?`, `forceFresh?`, `resourceTypes?`, `minSize?` |
+| Tool                    | Description                                                                | Parameters                                                    |
+| ----------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `pharos_unused_js`      | Find removable JavaScript by byte count                                    | `url`, `device?`, `forceFresh?`, `minBytes?`                  |
+| `pharos_resources`      | Full resource breakdown by type and size                                   | `url`, `device?`, `forceFresh?`, `resourceTypes?`, `minSize?` |
+| `pharos_third_parties`  | Third-party entity breakdown by category with byte and blocking-time impact | `url`, `device?`, `throttling?`, `forceFresh?`                |
 
 ### 🔒 Security Tools
 
-| Tool              | Description                                  | Parameters                      |
-| ----------------- | -------------------------------------------- | ------------------------------- |
+| Tool              | Description                                | Parameters                      |
+| ----------------- | ------------------------------------------ | ------------------------------- |
 | `pharos_security` | HTTPS, mixed-content, HSTS, and CSP checks | `url`, `forceFresh?`, `checks?` |
 
 ## 💬 Available Prompts

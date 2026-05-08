@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { resourceAnalysisSchema, unusedJavaScriptSchema } from "../schemas.ts";
-import { findUnusedJavaScript, analyzeResources } from "../lib/analysis.ts";
+import { resourceAnalysisSchema, unusedJavaScriptSchema, thirdPartySchema } from "../schemas.ts";
+import { findUnusedJavaScript, analyzeResources, getThirdPartyAnalysis } from "../lib/analysis.ts";
 import { READ_ONLY_OPEN } from "./annotations.ts";
 import { successResponse, errorResponse } from "../lib/responses.ts";
 
@@ -12,28 +12,32 @@ export function registerAnalysisTools(server: McpServer) {
       inputSchema: unusedJavaScriptSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, forceFresh, minBytes }) => {
+    async ({ url, device, throttling, forceFresh, minBytes }) => {
       try {
-        const result = await findUnusedJavaScript(url, device, minBytes, { forceFresh });
+        const result = await findUnusedJavaScript(url, device, minBytes, throttling, { forceFresh });
 
-        return successResponse({
-          url: result.url,
-          device: result.device,
-          timestamp: result.fetchTime,
-          thresholdBytes: minBytes,
-          summary: {
-            totalUnusedKB: Math.round((result.totalUnusedBytes / 1024) * 100) / 100,
-            totalFilesAnalyzed: result.items.length,
-            hasUnusedCode: result.items.length > 0,
+        return successResponse(
+          {
+            url: result.url,
+            device: result.device,
+            timestamp: result.fetchTime,
+            thresholdBytes: minBytes,
+            summary: {
+              totalUnusedKB: Math.round((result.totalUnusedBytes / 1024) * 100) / 100,
+              totalFilesAnalyzed: result.items.length,
+              hasUnusedCode: result.items.length > 0,
+            },
+            unusedFiles: result.items.map((item) => ({
+              filename: item.url.split("/").pop() || item.url,
+              totalKB: Math.round((item.totalBytes / 1024) * 100) / 100,
+              unusedKB: Math.round((item.wastedBytes / 1024) * 100) / 100,
+              unusedPercent: item.wastedPercent,
+              url: item.url,
+            })),
           },
-          unusedFiles: result.items.map((item) => ({
-            filename: item.url.split("/").pop() || item.url,
-            totalKB: Math.round((item.totalBytes / 1024) * 100) / 100,
-            unusedKB: Math.round((item.wastedBytes / 1024) * 100) / 100,
-            unusedPercent: item.wastedPercent,
-            url: item.url,
-          })),
-        });
+          result.warnings?.length ? result.warnings : undefined,
+          result.runtimeError,
+        );
       } catch (error) {
         return errorResponse("Unused JavaScript analysis failed", { url, device }, error);
       }
@@ -44,13 +48,13 @@ export function registerAnalysisTools(server: McpServer) {
     "pharos_resources",
     {
       description:
-        "Analyze page resources (images, JS, CSS, fonts) by type and size. Use to find optimization opportunities.",
+        "Page resource breakdown (images, JS, CSS, fonts) by type and size. Instant if pharos_audit already ran for this URL.",
       inputSchema: resourceAnalysisSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, forceFresh, resourceTypes, minSize }) => {
+    async ({ url, device, throttling, forceFresh, resourceTypes, minSize }) => {
       try {
-        const result = await analyzeResources(url, device, resourceTypes, minSize, { forceFresh });
+        const result = await analyzeResources(url, device, resourceTypes, minSize, throttling, { forceFresh });
 
         const resourceCounts: Record<string, { count: number; sizeKB: number }> = {};
         for (const [type, data] of Object.entries(result.summary)) {
@@ -83,16 +87,49 @@ export function registerAnalysisTools(server: McpServer) {
           });
         }
 
-        return successResponse({
-          url: result.url,
-          device: result.device,
-          timestamp: result.fetchTime,
-          filters: { resourceTypes: resourceTypes || ["all"], minSizeKB: minSize || 0 },
-          summary: { totalResources: result.resources.length, totalSizeKB, resourceCounts },
-          resources,
-        });
+        return successResponse(
+          {
+            url: result.url,
+            device: result.device,
+            timestamp: result.fetchTime,
+            filters: { resourceTypes: resourceTypes || ["all"], minSizeKB: minSize || 0 },
+            summary: { totalResources: result.resources.length, totalSizeKB, resourceCounts },
+            resources,
+          },
+          result.warnings?.length ? result.warnings : undefined,
+          result.runtimeError,
+        );
       } catch (error) {
         return errorResponse("Resource analysis failed", { url, device, resourceTypes, minSize }, error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "pharos_third_parties",
+    {
+      description:
+        "Third-party breakdown by entity (analytics, ads, social, etc.) with byte and blocking-time impact. Instant if pharos_audit already ran.",
+      inputSchema: thirdPartySchema,
+      annotations: READ_ONLY_OPEN,
+    },
+    async ({ url, device, throttling, forceFresh }) => {
+      try {
+        const result = await getThirdPartyAnalysis(url, device, throttling, { forceFresh });
+
+        return successResponse(
+          {
+            url: result.url,
+            device: result.device,
+            timestamp: result.fetchTime,
+            summary: result.summary,
+            categories: result.categories,
+          },
+          result.warnings?.length ? result.warnings : undefined,
+          result.runtimeError,
+        );
+      } catch (error) {
+        return errorResponse("Third-party analysis failed", { url, device }, error);
       }
     },
   );

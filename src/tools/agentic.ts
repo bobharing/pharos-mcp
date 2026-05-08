@@ -9,7 +9,7 @@ export function registerAgenticTools(server: McpServer) {
     "pharos_agentic",
     {
       description:
-        "Agentic browsing audit — checks how well a site supports AI agents and LLM-driven browsing. Evaluates: accessibility tree quality for agents, llms.txt presence and validity, WebMCP tool registration, WebMCP form coverage, WebMCP schema validity, and CLS stability. Use this to assess and improve a site's agent-readiness.",
+        "Agent-readiness audit: accessibility tree, llms.txt, WebMCP tools/forms/schema, and CLS stability. Instant if pharos_audit already ran for this URL.",
       inputSchema: agenticAuditSchema,
       annotations: READ_ONLY_OPEN,
     },
@@ -45,16 +45,20 @@ export function registerAgenticTools(server: McpServer) {
           return entry;
         });
 
-        return successResponse({
-          url: result.url,
-          device: result.device,
-          overallScore: result.overallScore,
-          auditCount: result.auditCount,
-          passedAudits: result.passedAudits,
-          failedAudits: result.failedAudits,
-          audits,
-          fetchTime: result.fetchTime,
-        });
+        return successResponse(
+          {
+            url: result.url,
+            device: result.device,
+            overallScore: result.overallScore,
+            auditCount: result.auditCount,
+            passedAudits: result.passedAudits,
+            failedAudits: result.failedAudits,
+            audits,
+            fetchTime: result.fetchTime,
+          },
+          result.warnings?.length ? result.warnings : undefined,
+          result.runtimeError,
+        );
       } catch (error) {
         return errorResponse("Agentic browsing audit failed", { url, device }, error);
       }

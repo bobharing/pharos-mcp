@@ -9,13 +9,13 @@ export function registerSecurityTools(server: McpServer) {
     "pharos_security",
     {
       description:
-        "Security audit checking HTTPS, mixed-content, HSTS, and CSP effectiveness. Uses Lighthouse best-practices category. Note: 'https', 'mixed-content', and 'hsts' checks all evaluate via the same Lighthouse is-on-https audit.",
+        "Security audit: HTTPS, mixed-content, HSTS, and CSP. Instant if pharos_audit already ran. Note: https/mixed-content/hsts all map to the same is-on-https audit.",
       inputSchema: securityAuditSchema,
       annotations: READ_ONLY_OPEN,
     },
-    async ({ url, forceFresh, checks }) => {
+    async ({ url, device, throttling, forceFresh, checks }) => {
       try {
-        const result = await getSecurityAudit(url, checks, { forceFresh });
+        const result = await getSecurityAudit(url, checks, device, throttling, { forceFresh });
 
         const audits = result.audits.map((audit) => {
           const auditItem = audit as {
@@ -40,16 +40,20 @@ export function registerSecurityTools(server: McpServer) {
           };
         });
 
-        return successResponse({
-          url: result.url,
-          overallScore: result.overallScore,
-          audits,
-          auditCount: audits.length,
-          passedAudits: audits.filter((a) => a.status === "pass").length,
-          warningAudits: audits.filter((a) => a.status === "warning").length,
-          failedAudits: audits.filter((a) => a.status === "fail").length,
-          fetchTime: result.fetchTime,
-        });
+        return successResponse(
+          {
+            url: result.url,
+            overallScore: result.overallScore,
+            audits,
+            auditCount: audits.length,
+            passedAudits: audits.filter((a) => a.status === "pass").length,
+            warningAudits: audits.filter((a) => a.status === "warning").length,
+            failedAudits: audits.filter((a) => a.status === "fail").length,
+            fetchTime: result.fetchTime,
+          },
+          result.warnings?.length ? result.warnings : undefined,
+          result.runtimeError,
+        );
       } catch (error) {
         return errorResponse("Security audit failed", { url }, error);
       }

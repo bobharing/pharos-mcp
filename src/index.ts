@@ -23,18 +23,21 @@ setChromeLaunchConfig(cliConfig);
 const server = new McpServer(
   { name: "Pharos", version: packageJson.version },
   {
-    instructions: `Pharos is a Lighthouse-powered web auditing server. Each tool launches Chrome to audit a URL (5-15 seconds per call).
+    instructions: `Pharos: Lighthouse-powered web auditing. Results cached 10 min per URL/device/throttling (cold audits: 5-15s).
+
+CACHE STRATEGY: pharos_audit warms the full cache — all subsequent tools for the same URL/device are instant. Always call pharos_audit first unless you only need one specific check.
 
 WORKFLOW:
-1. pharos_audit — Full overview of all categories (use focusCategory for details on one area)
-2. pharos_performance — Detailed performance with optional budget checking
-3. pharos_core_web_vitals — Core Web Vitals with threshold validation
-4. pharos_compare_devices — Mobile vs desktop (runs two audits, 10-30s)
-5. pharos_security — HTTPS and CSP checks
-6. pharos_resources — Resource breakdown by type and size
-7. pharos_unused_js — Find removable JavaScript
-8. pharos_lcp — LCP optimization opportunities
-9. pharos_agentic — Agent-guided audit workflows and analysis`,
+1. pharos_audit — warms cache + returns all category scores (start here)
+2. pharos_performance — instant after step 1; performance score + budget check
+3. pharos_core_web_vitals — instant after step 1; LCP/INP/CLS thresholds
+4. pharos_compare_devices — runs both devices sequentially (10-30s cold; instant if cached)
+5. pharos_security — instant after step 1; HTTPS, CSP checks
+6. pharos_resources — instant after step 1; resource breakdown by type/size
+7. pharos_unused_js — instant after step 1; find removable JavaScript
+8. pharos_lcp — instant after step 1; LCP optimization opportunities
+9. pharos_third_parties — instant after step 1; third-party entity breakdown by category with byte/blocking impact
+10. pharos_agentic — instant after step 1; agent-readiness audit`,
   },
 );
 

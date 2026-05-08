@@ -6,9 +6,10 @@ export async function getCoreWebVitals(
   url: string,
   device: "desktop" | "mobile" = "desktop",
   threshold?: { lcp?: number; inp?: number; cls?: number },
+  throttling = false,
   options?: { forceFresh?: boolean },
 ) {
-  const result = await runLighthouseAudit(url, ["performance"], device, false, options);
+  const result = await runLighthouseAudit(url, ["performance"], device, throttling, options);
 
   const coreWebVitals = {
     lcp: result.metrics["largest-contentful-paint"],
@@ -32,6 +33,8 @@ export async function getCoreWebVitals(
     allMetrics: result.metrics,
     thresholdResults,
     fetchTime: result.fetchTime,
+    warnings: result.warnings,
+    runtimeError: result.runtimeError,
   };
 }
 
@@ -42,7 +45,7 @@ export async function compareMobileDesktop(
   throttling = false,
   options?: { forceFresh?: boolean },
 ) {
-  // Run audits sequentially to avoid Chrome port conflicts
+  // Run sequentially to avoid skewing results from concurrent system resource contention.
   const mobileResult = await runLighthouseAudit(url, categories, "mobile", throttling, options);
   const desktopResult = await runLighthouseAudit(url, categories, "desktop", throttling, options);
 
@@ -57,6 +60,11 @@ export async function compareMobileDesktop(
       metrics: desktopResult.metrics,
     },
     differences: {} as Record<string, { mobile: number; desktop: number; difference: number }>,
+    warnings: [
+      ...(mobileResult.warnings ?? []),
+      ...(desktopResult.warnings ?? []),
+    ].filter((v, i, a) => a.indexOf(v) === i),
+    runtimeError: mobileResult.runtimeError ?? desktopResult.runtimeError,
   };
 
   // Calculate differences for categories
@@ -79,9 +87,10 @@ export async function getLcpOpportunities(
   url: string,
   device: "desktop" | "mobile" = "desktop",
   threshold = DEFAULTS.LCP_THRESHOLD,
+  throttling = false,
   options?: { forceFresh?: boolean },
 ) {
-  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, false, options);
+  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, throttling, options);
   const { lhr } = runnerResult;
 
   const lcpValue = (lhr.audits["largest-contentful-paint"]?.numericValue || 0) / 1000;
@@ -110,5 +119,7 @@ export async function getLcpOpportunities(
     needsImprovement,
     opportunities,
     fetchTime: lhr.fetchTime,
+    warnings: lhr.runWarnings?.length ? lhr.runWarnings : undefined,
+    runtimeError: lhr.runtimeError,
   };
 }

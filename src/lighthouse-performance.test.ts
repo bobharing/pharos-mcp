@@ -73,7 +73,7 @@ describe("lighthouse-performance", () => {
         cls: 0.1, // Pass: 0.05 <= 0.1
       };
 
-      const result = await getCoreWebVitals(mockUrl, "mobile", thresholds);
+      const result = await getCoreWebVitals(mockUrl, "mobile", thresholds, false);
 
       expect(result.thresholdResults).toEqual({
         lcp: true, // 2.5s <= 3.0s
@@ -92,6 +92,14 @@ describe("lighthouse-performance", () => {
       expect(result.coreWebVitals.fcp).toBeUndefined();
       expect(result.coreWebVitals.cls).toBeUndefined();
       expect(result.coreWebVitals.tbt).toBeUndefined();
+    });
+
+    it("should forward throttling=true to runLighthouseAudit", async () => {
+      mockRunLighthouseAudit().mockResolvedValue(mockLighthouseResult);
+
+      await getCoreWebVitals(mockUrl, "mobile", undefined, true);
+
+      expect(lighthouseCore.runLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["performance"], "mobile", true, undefined);
     });
   });
 
@@ -228,6 +236,20 @@ describe("lighthouse-performance", () => {
 
       expect(result.opportunities).toHaveLength(1);
       expect(result.opportunities[0]?.title).toBe("Unused CSS");
+    });
+
+    it("should forward throttling=true to runRawLighthouseAudit", async () => {
+      const mockLhr = {
+        finalDisplayedUrl: mockUrl,
+        fetchTime: mockFetchTime,
+        audits: { "largest-contentful-paint": { numericValue: 2000 } },
+      };
+
+      mockRunRawLighthouseAudit().mockResolvedValue({ lhr: mockLhr } as any);
+
+      await getLcpOpportunities(mockUrl, "mobile", DEFAULTS.LCP_THRESHOLD, true);
+
+      expect(lighthouseCore.runRawLighthouseAudit).toHaveBeenCalledWith(mockUrl, ["performance"], "mobile", true, undefined);
     });
   });
 });

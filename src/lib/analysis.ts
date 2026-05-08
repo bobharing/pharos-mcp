@@ -6,9 +6,10 @@ export async function findUnusedJavaScript(
   url: string,
   device: "desktop" | "mobile" = "desktop",
   minBytes = DEFAULTS.MIN_UNUSED_JS_BYTES,
+  throttling = false,
   options?: { forceFresh?: boolean },
 ) {
-  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, false, options);
+  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, throttling, options);
   const { lhr } = runnerResult;
 
   const unusedJsAudit = lhr.audits["unused-javascript"];
@@ -20,6 +21,8 @@ export async function findUnusedJavaScript(
       totalUnusedBytes: 0,
       items: [],
       fetchTime: lhr.fetchTime,
+      warnings: lhr.runWarnings?.length ? lhr.runWarnings : undefined,
+      runtimeError: lhr.runtimeError,
     };
   }
 
@@ -41,6 +44,8 @@ export async function findUnusedJavaScript(
     totalUnusedBytes,
     items,
     fetchTime: lhr.fetchTime,
+    warnings: lhr.runWarnings?.length ? lhr.runWarnings : undefined,
+    runtimeError: lhr.runtimeError,
   };
 }
 
@@ -76,9 +81,10 @@ export async function analyzeResources(
   device: "desktop" | "mobile" = "desktop",
   resourceTypes?: string[],
   minSize = DEFAULTS.MIN_RESOURCE_SIZE_KB,
+  throttling = false,
   options?: { forceFresh?: boolean },
 ) {
-  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, false, options);
+  const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, throttling, options);
   const { lhr } = runnerResult;
 
   // Get resource summary from network-requests audit
@@ -91,6 +97,8 @@ export async function analyzeResources(
       resources: [],
       summary: {},
       fetchTime: lhr.fetchTime,
+      warnings: lhr.runWarnings?.length ? lhr.runWarnings : undefined,
+      runtimeError: lhr.runtimeError,
     };
   }
 
@@ -136,12 +144,20 @@ export async function analyzeResources(
     resources,
     summary,
     fetchTime: lhr.fetchTime,
+    warnings: lhr.runWarnings?.length ? lhr.runWarnings : undefined,
+    runtimeError: lhr.runtimeError,
   };
 }
 
 // Helper function to get security audit
-export async function getSecurityAudit(url: string, checks?: string[], options?: { forceFresh?: boolean }) {
-  const runnerResult = await runRawLighthouseAudit(url, ["best-practices"], "desktop", false, options);
+export async function getSecurityAudit(
+  url: string,
+  checks?: string[],
+  device: "desktop" | "mobile" = "desktop",
+  throttling = false,
+  options?: { forceFresh?: boolean },
+) {
+  const runnerResult = await runRawLighthouseAudit(url, ["best-practices"], device, throttling, options);
   const { lhr } = runnerResult;
 
   // Maps user-facing check names to the Lighthouse audit IDs they correspond to.
@@ -181,6 +197,8 @@ export async function getSecurityAudit(url: string, checks?: string[], options?:
     overallScore: Math.round(overallScore * 100),
     audits: auditResults,
     fetchTime: lhr.fetchTime,
+    warnings: lhr.runWarnings?.length ? lhr.runWarnings : undefined,
+    runtimeError: lhr.runtimeError,
   };
 }
 
@@ -226,5 +244,100 @@ export async function getAgenticAudit(url: string, device: "desktop" | "mobile" 
     passedAudits: scoredAudits.filter((a) => a?.score === 1).length,
     failedAudits: scoredAudits.filter((a) => a?.score === 0).length,
     fetchTime: lhr.fetchTime,
+    warnings: lhr.runWarnings?.length ? lhr.runWarnings : undefined,
+    runtimeError: lhr.runtimeError,
+  };
+}
+
+// Helper function to get third-party entity breakdown
+export async function getThirdPartyAnalysis(
+  url: string,
+  device: "desktop" | "mobile" = "desktop",
+  throttling = false,
+  options?: { forceFresh?: boolean },
+) {
+  const runnerResult = await runRawLighthouseAudit(url, undefined, device, throttling, options);
+  const { lhr } = runnerResult;
+
+  const entities = lhr.entities ?? [];
+
+  // Build per-entity impact map from third-party-summary audit
+  const entityImpact: Record<string, { transferBytes: number; blockingTimeMs: number; auditIds: string[] }> = {};
+
+  const thirdPartySummaryAudit = lhr.audits["third-party-summary"];
+  if (thirdPartySummaryAudit?.details?.items) {
+    for (const item of thirdPartySummaryAudit.details.items as Record<string, unknown>[]) {
+      const entityName = (item.entity as string) || "";
+      if (entityName) {
+        entityImpact[entityName] = {
+          transferBytes: (item.transferSize as number) || 0,
+          blockingTimeMs: Math.round((item.blockingTime as number) || 0),
+          auditIds: ["third-party-summary"],
+        };
+      }
+    }
+  }
+
+  const thirdPartyFacadesAudit = lhr.audits["third-party-facades"];
+  if (thirdPartyFacadesAudit?.details?.items) {
+    for (const item of thirdPartyFacadesAudit.details.items as Record<string, unknown>[]) {
+      const entityName = (item.entity as string) || "";
+      if (entityName) {
+        if (!entityImpact[entityName]) {
+          entityImpact[entityName] = { transferBytes: 0, blockingTimeMs: 0, auditIds: [] };
+        }
+        if (!entityImpact[entityName].auditIds.includes("third-party-facades")) {
+          entityImpact[entityName].auditIds.push("third-party-facades");
+        }
+      }
+    }
+  }
+
+  const firstPartyEntities = entities.filter((e) => e.isFirstParty);
+  const thirdPartyEntities = entities.filter((e) => !e.isFirstParty);
+
+  // Group third-party entities by category
+  const groupedByCategory: Record<
+    string,
+    Array<{
+      name: string;
+      origins: string[];
+      transferKB: number;
+      blockingTimeMs: number;
+      auditsPresent: string[];
+    }>
+  > = {};
+
+  for (const entity of thirdPartyEntities) {
+    const category = entity.category || "other";
+    if (!groupedByCategory[category]) {
+      groupedByCategory[category] = [];
+    }
+    const impact = entityImpact[entity.name] ?? { transferBytes: 0, blockingTimeMs: 0, auditIds: [] };
+    groupedByCategory[category].push({
+      name: entity.name,
+      origins: entity.origins,
+      transferKB: Math.round((impact.transferBytes / 1024) * 100) / 100,
+      blockingTimeMs: impact.blockingTimeMs,
+      auditsPresent: impact.auditIds,
+    });
+  }
+
+  const totalTransferBytes = Object.values(entityImpact).reduce((sum, e) => sum + e.transferBytes, 0);
+  const totalBlockingMs = Object.values(entityImpact).reduce((sum, e) => sum + e.blockingTimeMs, 0);
+
+  return {
+    url: lhr.finalDisplayedUrl,
+    device,
+    fetchTime: lhr.fetchTime,
+    summary: {
+      firstPartyCount: firstPartyEntities.length,
+      thirdPartyCount: thirdPartyEntities.length,
+      totalThirdPartyKB: Math.round((totalTransferBytes / 1024) * 100) / 100,
+      totalThirdPartyBlockingMs: Math.round(totalBlockingMs),
+    },
+    categories: groupedByCategory,
+    warnings: lhr.runWarnings?.length ? lhr.runWarnings : undefined,
+    runtimeError: lhr.runtimeError,
   };
 }
