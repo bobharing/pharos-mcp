@@ -1,7 +1,6 @@
 # Pharos MCP Server
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](./LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/bobharing/pharos-mcp/ci.yml?branch=main&style=flat-square)](https://github.com/bobharing/pharos-mcp/actions)
 
 A Model Context Protocol (MCP) server that provides comprehensive web performance auditing and analysis capabilities using Google Lighthouse. This server enables LLMs and AI agents to perform detailed website performance assessments, accessibility audits, SEO analysis, security checks, and Core Web Vitals monitoring.
 
@@ -10,17 +9,17 @@ A Model Context Protocol (MCP) server that provides comprehensive web performanc
 - **🚀 Performance Analysis**: Complete Lighthouse audits with Core Web Vitals, performance scores, and optimization recommendations
 - **♿ Accessibility Audits**: WCAG compliance checking and accessibility score analysis
 - **🔍 SEO Analysis**: Search engine optimization audits and best practice recommendations
-- **🔒 Security Assessment**: HTTPS, CSP, and security vulnerability scanning
+- **🔒 Security Assessment**: HTTPS, CSP, and related security best-practice checks
 - **📊 Resource Analysis**: JavaScript, CSS, image, and font optimization opportunities
 - **📱 Mobile vs Desktop**: Comparative analysis across devices with throttling options
 - **⚡ Core Web Vitals**: LCP, INP, CLS monitoring with threshold checking
 - **🎯 Performance Budgets**: Custom performance thresholds and budget monitoring
-- **�️ Result Caching**: In-memory LHR cache (5-minute TTL) eliminates redundant Lighthouse runs for repeated tool calls on the same URL/device/throttling combination
-- **�📚 Reference Resources**: Built-in guidelines and best practices for web performance, accessibility, SEO, and security
+- **🗂️ Result Caching**: In-memory LHR cache (5-minute TTL) eliminates redundant Lighthouse runs for repeated tool calls on the same URL/device/throttling combination
+- **📚 Reference Resources**: Built-in guidelines and best practices for web performance, accessibility, SEO, and security
 
 ## 🛠️ Requirements
 
-- [Bun](https://bun.sh) 1.0 or newer
+- [Bun](https://bun.sh) 1.1.0 or newer
 - Chrome/Chromium browser (automatically managed by Lighthouse)
 - VS Code, Cursor, Windsurf, Claude Desktop, or any other MCP client
 
@@ -250,7 +249,7 @@ Pharos exposes 9 tools with the `pharos_` prefix, all marked read-only:
 
 | Tool              | Description                                  | Parameters                      |
 | ----------------- | -------------------------------------------- | ------------------------------- |
-| `pharos_security` | HTTPS, CSP, HTTP/2, and vulnerability checks | `url`, `forceFresh?`, `checks?` |
+| `pharos_security` | HTTPS, mixed-content, HSTS, and CSP checks | `url`, `forceFresh?`, `checks?` |
 
 ## 💬 Available Prompts
 
@@ -317,12 +316,12 @@ Pharos provides built-in reference resources with essential guidelines and best 
 
 ### Specific Parameters
 
-- **`categories`**: Lighthouse categories to audit (`["performance", "accessibility", "best-practices", "seo", "pwa"]`)
-- **`threshold`**: Custom thresholds for metrics (e.g., `{"lcp": 2.5, "fid": 100, "cls": 0.1}`)
+- **`categories`**: Lighthouse categories to audit (`["performance", "accessibility", "best-practices", "seo", "agentic-browsing"]`)
+- **`threshold`**: Custom thresholds for metrics (e.g., `{"lcp": 2.5, "inp": 200, "cls": 0.1}`)
 - **`budget`**: Performance budget limits (e.g., `{"performanceScore": 90, "largestContentfulPaint": 2500}`)
 - **`resourceTypes`**: Resource types to analyze (`["images", "javascript", "css", "fonts", "other"]`)
 - **`minBytes`**: Minimum file size threshold for analysis (default: `2048`)
-- **`checks`**: Security checks to perform (`["https", "mixed-content", "csp", "hsts", "vulnerabilities"]`)
+- **`checks`**: Security checks to perform (`["https", "mixed-content", "hsts", "csp"]`)
 
 ## 💡 Usage Examples
 
