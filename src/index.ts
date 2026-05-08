@@ -30,10 +30,11 @@ WORKFLOW:
 2. pharos_performance — Detailed performance with optional budget checking
 3. pharos_core_web_vitals — Core Web Vitals with threshold validation
 4. pharos_compare_devices — Mobile vs desktop (runs two audits, 10-30s)
-5. pharos_security — HTTPS, CSP, HTTP/2, vulnerability checks
+5. pharos_security — HTTPS and CSP checks
 6. pharos_resources — Resource breakdown by type and size
 7. pharos_unused_js — Find removable JavaScript
-8. pharos_lcp — LCP optimization opportunities`,
+8. pharos_lcp — LCP optimization opportunities
+9. pharos_agentic — Agent-guided audit workflows and analysis`,
   },
 );
 

@@ -1,7 +1,7 @@
 {
   "name": "@bobharing/pharos-mcp",
   "version": "1.5.0",
-  "description": "A Model Context Protocol (MCP) server that provides web performance auditing, accessibility testing, SEO analysis, security assessment, and Core Web Vitals monitoring using Google Lighthouse. Enables LLMs and AI agents to perform detailed website analysis with 8 specialized tools.",
+  "description": "A Model Context Protocol (MCP) server that provides web performance auditing, accessibility testing, SEO analysis, security assessment, and Core Web Vitals monitoring using Google Lighthouse. Enables LLMs and AI agents to perform detailed website analysis with 9 specialized tools.",
   "main": "src/index.ts",
   "bin": {
     "pharos-mcp": "src/index.ts"
