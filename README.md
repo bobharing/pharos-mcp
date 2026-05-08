@@ -249,7 +249,7 @@ Pharos exposes 8 tools with the `pharos_` prefix, all marked read-only:
 
 | Tool              | Description                                  | Parameters                      |
 | ----------------- | -------------------------------------------- | ------------------------------- |
-| `pharos_security` | HTTPS, CSP, HTTP/2, and vulnerability checks | `url`, `forceFresh?`, `checks?` |
+| `pharos_security` | HTTPS, mixed-content, HSTS, and CSP checks | `url`, `forceFresh?`, `checks?` |
 
 ## 💬 Available Prompts
 
@@ -316,12 +316,12 @@ Pharos provides built-in reference resources with essential guidelines and best 
 
 ### Specific Parameters
 
-- **`categories`**: Lighthouse categories to audit (`["performance", "accessibility", "best-practices", "seo", "pwa"]`)
-- **`threshold`**: Custom thresholds for metrics (e.g., `{"lcp": 2.5, "fid": 100, "cls": 0.1}`)
+- **`categories`**: Lighthouse categories to audit (`["performance", "accessibility", "best-practices", "seo", "agentic-browsing"]`)
+- **`threshold`**: Custom thresholds for metrics (e.g., `{"lcp": 2.5, "inp": 200, "cls": 0.1}`)
 - **`budget`**: Performance budget limits (e.g., `{"performanceScore": 90, "largestContentfulPaint": 2500}`)
 - **`resourceTypes`**: Resource types to analyze (`["images", "javascript", "css", "fonts", "other"]`)
 - **`minBytes`**: Minimum file size threshold for analysis (default: `2048`)
-- **`checks`**: Security checks to perform (`["https", "mixed-content", "csp", "hsts", "vulnerabilities"]`)
+- **`checks`**: Security checks to perform (`["https", "mixed-content", "hsts", "csp"]`)
 
 ## 💡 Usage Examples
 
