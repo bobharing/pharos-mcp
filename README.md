@@ -20,7 +20,7 @@ A Model Context Protocol (MCP) server that provides comprehensive web performanc
 ## 🛠️ Requirements
 
 - [Bun](https://bun.sh) 1.1.0 or newer
-- Chrome/Chromium browser (automatically managed by Lighthouse)
+- [Google Chrome](https://www.google.com/chrome/) or [Chromium](https://www.chromium.org/getting-involved/download-chromium/) installed on your machine (detected automatically by `chrome-launcher`; use `--chrome-path` or the `CHROME_PATH` env var to point to a custom binary)
 - VS Code, Cursor, Windsurf, Claude Desktop, or any other MCP client
 
 ## 🚀 Getting Started
