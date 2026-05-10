@@ -9,7 +9,7 @@ export function registerAgenticTools(server: McpServer) {
     "pharos_agentic",
     {
       description:
-        "Agent-readiness audit: accessibility tree, llms.txt, WebMCP tools/forms/schema, and CLS stability. Reads from cache (no new Lighthouse run) if pharos_audit already ran for this URL.",
+        "Agent-readiness audit: accessibility tree, llms.txt, WebMCP tools/forms/schema, and CLS stability. Reads from cache if pharos_audit ran first.",
       inputSchema: agenticAuditSchema,
       annotations: READ_ONLY_OPEN,
     },
