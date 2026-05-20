@@ -43,6 +43,7 @@ export function registerSecurityTools(server: McpServer) {
         return successResponse(
           {
             url: result.url,
+            device: device ?? "desktop",
             overallScore: result.overallScore,
             audits,
             auditCount: audits.length,
