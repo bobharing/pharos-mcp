@@ -14,16 +14,16 @@ import { parseCliArgs } from "./cli.ts";
 import { setChromeLaunchConfig } from "./lib/chrome.ts";
 import { getActiveChromeInstances } from "./lib/lighthouse.ts";
 import { getTransportMode, connectStdio, connectHttp } from "./transport.ts";
-
-const packageJson = await Bun.file(import.meta.dir + "/../package.json").json();
+import packageJson from "../package.json" with { type: "json" };
 
 const cliConfig = parseCliArgs(process.argv.slice(2));
 setChromeLaunchConfig(cliConfig);
 
-const server = new McpServer(
-  { name: "Pharos", version: packageJson.version },
-  {
-    instructions: `Pharos: Lighthouse-powered web auditing. Results cached 10 min per URL/device/throttling (cold audits: 5-15s).
+function createServer(): McpServer {
+  const s = new McpServer(
+    { name: "Pharos", version: packageJson.version },
+    {
+      instructions: `Pharos: Lighthouse-powered web auditing. Results cached 10 min per URL/device/throttling (cold audits: 5-15s).
 
 CACHE STRATEGY: pharos_audit warms the full cache — all subsequent tools for the same URL/device are instant. Always call pharos_audit first unless you only need one specific check.
 
@@ -38,27 +38,26 @@ WORKFLOW:
 8. pharos_lcp — instant after step 1; LCP optimization opportunities
 9. pharos_third_parties — instant after step 1; third-party entity breakdown by category with byte/blocking impact
 10. pharos_agentic — instant after step 1; agent-readiness audit`,
-  },
-);
+    },
+  );
 
-// Register all tool categories
-registerAuditTools(server);
-registerPerformanceTools(server);
-registerAnalysisTools(server);
-registerSecurityTools(server);
-registerAgenticTools(server);
-
-// Register prompts
-registerPrompts(server);
-
-// Register resources
-registerResources(server);
+  registerAuditTools(s);
+  registerPerformanceTools(s);
+  registerAnalysisTools(s);
+  registerSecurityTools(s);
+  registerAgenticTools(s);
+  registerPrompts(s);
+  registerResources(s);
+  return s;
+}
 
 const mode = getTransportMode();
+let serverInstance: McpServer | null = null;
 if (mode === "http") {
-  await connectHttp(server);
+  await connectHttp(createServer);
 } else {
-  await connectStdio(server);
+  serverInstance = createServer();
+  await connectStdio(serverInstance);
   process.stderr.write(`Pharos MCP server v${packageJson.version} started\n`);
 }
 
@@ -75,7 +74,7 @@ async function shutdown() {
   const killPromises = [...chromeInstances].map((chrome) => Promise.resolve(chrome.kill()).catch(() => {}));
   await Promise.allSettled(killPromises);
 
-  await server.close();
+  if (serverInstance) await serverInstance.close();
   process.exit(0);
 }
 

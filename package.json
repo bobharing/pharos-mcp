@@ -11,6 +11,7 @@
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target bun",
+    "compile": "bun build src/index.ts --compile --outfile dist/pharos-mcp",
     "start": "bun run src/index.ts",
     "dev": "bun run --watch src/index.ts",
     "inspect": "bunx @modelcontextprotocol/inspector bun run src/index.ts",

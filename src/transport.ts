@@ -21,15 +21,18 @@ export async function connectStdio(server: McpServer): Promise<void> {
   await server.connect(transport);
 }
 
-export async function connectHttp(server: McpServer): Promise<void> {
+export async function connectHttp(createServer: () => McpServer): Promise<void> {
   const port = getHttpPort();
+  const hostname = process.env.PHAROS_HOST ?? "127.0.0.1";
 
   Bun.serve({
     port,
+    hostname,
     async fetch(req: Request): Promise<Response> {
       const url = new URL(req.url);
 
       if (url.pathname === "/mcp") {
+        const server = createServer();
         const transport = new WebStandardStreamableHTTPServerTransport({
           sessionIdGenerator: undefined, // stateless mode
         });
@@ -45,5 +48,5 @@ export async function connectHttp(server: McpServer): Promise<void> {
     },
   });
 
-  process.stderr.write(`Pharos HTTP transport listening on port ${port}\n`);
+  process.stderr.write(`Pharos HTTP transport listening on ${hostname}:${port}\n`);
 }

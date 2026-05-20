@@ -85,6 +85,9 @@ export function buildLighthouseOptions(
   };
 }
 
+// Standard Lighthouse categories — used to detect non-standard category requests
+const STANDARD_LH_CATEGORIES = new Set(["performance", "accessibility", "best-practices", "seo", "pwa"]);
+
 // Helper function to run a raw Lighthouse audit
 export async function runRawLighthouseAudit(
   url: string,
@@ -103,7 +106,9 @@ export async function runRawLighthouseAudit(
 
   if (cacheKey && !options?.forceFresh) {
     const cached = getCachedResult(cacheKey);
-    if (cached) return cached;
+    // Only use the cache if it covers all requested categories.
+    // A prior standard run won't contain non-standard categories (e.g. "agentic-browsing").
+    if (cached && (!categories || categories.every((c) => c in cached.lhr.categories))) return cached;
   }
 
   const runAudit = async () => {
@@ -111,7 +116,7 @@ export async function runRawLighthouseAudit(
     // completed the same audit while we were waiting.
     if (cacheKey && !options?.forceFresh) {
       const cached = getCachedResult(cacheKey);
-      if (cached) return cached;
+      if (cached && (!categories || categories.every((c) => c in cached.lhr.categories))) return cached;
     }
 
     const chrome = remoteDebuggingPort ? null : await launchChrome();
@@ -123,9 +128,14 @@ export async function runRawLighthouseAudit(
         throw new Error("Failed to resolve Chrome debugging port");
       }
 
-      // On a cache miss, run all categories so any subsequent tool call can be served from cache.
-      // Only limit categories when cache is disabled (profile mode) or caller explicitly passes categories without caching.
-      const effectiveCategories = useCache ? undefined : categories;
+      // On a cache miss, run all standard categories to fully warm the cache so any subsequent
+      // tool call is instant. Also include any non-standard categories the caller explicitly
+      // requested (e.g. "agentic-browsing") since those won't be covered by the standard run.
+      // When caching is disabled (profile mode), honour the caller's category list exactly.
+      const nonStandard = categories?.filter((c) => !STANDARD_LH_CATEGORIES.has(c));
+      const effectiveCategories = useCache
+        ? (nonStandard?.length ? [...STANDARD_LH_CATEGORIES, ...nonStandard] : undefined)
+        : categories;
       const auditOptions = buildLighthouseOptions(port, device, effectiveCategories, throttling, disableStorageReset);
       const runnerResult = (await lighthouse(url, auditOptions)) as LighthouseResult;
 
