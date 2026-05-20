@@ -19,6 +19,22 @@ export interface LighthouseAudit {
   };
 }
 
+export interface LhrEntity {
+  name: string;
+  homepage?: string;
+  category?: string;
+  isFirstParty?: boolean;
+  isUnrecognized?: boolean;
+  origins: string[];
+}
+
+export interface LhrStackPack {
+  id: string;
+  title: string;
+  iconDataURL?: string;
+  descriptions: Record<string, string>;
+}
+
 export interface LighthouseResult {
   lhr: {
     finalDisplayedUrl: string;
@@ -27,6 +43,15 @@ export interface LighthouseResult {
     userAgent: string;
     categories: Record<string, LighthouseCategory>;
     audits: Record<string, LighthouseAudit>;
+    runWarnings?: string[];
+    runtimeError?: { code: string; message: string };
+    entities?: LhrEntity[];
+    stackPacks?: LhrStackPack[];
+    environment?: {
+      hostUserAgent: string;
+      networkUserAgent: string;
+      benchmarkIndex: number;
+    };
   };
 }
 
@@ -53,4 +78,6 @@ export interface LighthouseAuditResult {
       score: number | null;
     }
   >;
+  warnings?: string[];
+  runtimeError?: { code: string; message: string };
 }

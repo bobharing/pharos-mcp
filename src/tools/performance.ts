@@ -1,375 +1,187 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import {
-  basicAuditSchema,
-  coreWebVitalsSchema,
-  compareDevicesSchema,
-  performanceBudgetSchema,
-  lcpOpportunitiesSchema,
-} from "../schemas.js";
-import {
-  getPerformanceScore,
-  getCoreWebVitals,
-  compareMobileDesktop,
-  checkPerformanceBudget,
-  getLcpOpportunities,
-} from "../lighthouse-performance.js";
-
-interface StructuredResponse {
-  summary: string;
-  data: Record<string, unknown>;
-  recommendations?: string[];
-}
-
-function createStructuredPerformance(
-  type: string,
-  url: string,
-  device: string,
-  data: Record<string, unknown>,
-  recommendations?: string[],
-): StructuredResponse {
-  return {
-    summary: `${type} analysis for ${url} on ${device}`,
-    data,
-    ...(recommendations && { recommendations }),
-  };
-}
+import { performanceSchema, coreWebVitalsSchema, compareDevicesSchema, lcpOpportunitiesSchema } from "../schemas.ts";
+import { getCoreWebVitals, compareMobileDesktop, getLcpOpportunities } from "../lib/performance.ts";
+import { runRawLighthouseAudit, formatCategoryScores, extractKeyMetrics } from "../lib/lighthouse.ts";
+import { BUDGET_METRIC_MAPPINGS } from "../lib/constants.ts";
+import { READ_ONLY_OPEN } from "./annotations.ts";
+import { successResponse, errorResponse } from "../lib/responses.ts";
 
 export function registerPerformanceTools(server: McpServer) {
   server.registerTool(
-    "get_performance_score",
+    "pharos_performance",
     {
-      description: "Get the performance score for a website",
-      inputSchema: basicAuditSchema,
+      description:
+        "Performance score and metrics. Reads from cache if pharos_audit ran first. Optionally validate against a budget.",
+      inputSchema: performanceSchema,
+      annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device }) => {
+    async ({ url, device, throttling, forceFresh, budget }) => {
       try {
-        const result = await getPerformanceScore(url, device);
+        const runnerResult = await runRawLighthouseAudit(url, ["performance"], device, throttling, { forceFresh });
+        const { lhr } = runnerResult;
 
-        const structuredResult = createStructuredPerformance(
-          "Performance Score",
-          result.url,
-          result.device,
-          {
-            performanceScore: result.performanceScore,
-            metrics: Object.fromEntries(
-              Object.entries(result.metrics).map(([key, metric]) => [
-                key,
-                {
-                  title: metric.title,
-                  value: metric.displayValue,
-                  score: metric.score,
-                },
-              ]),
-            ),
-            fetchTime: result.fetchTime,
-          },
-          [
-            "Focus on Core Web Vitals improvements",
-            "Optimize largest contentful paint for better user experience",
-            "Reduce total blocking time to improve interactivity",
-          ],
-        );
+        const formattedCategories = formatCategoryScores(lhr);
+        const metrics = extractKeyMetrics(lhr);
 
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(structuredResult, null, 2),
-            },
-          ],
+        const metricValues: Record<string, { title: string; value: string; score: number | null }> = {};
+        for (const [key, metric] of Object.entries(metrics)) {
+          metricValues[key] = { title: metric.title, value: metric.displayValue, score: metric.score };
+        }
+
+        const data: Record<string, unknown> = {
+          performanceScore: formattedCategories.performance?.score || 0,
+          metrics: metricValues,
+          fetchTime: lhr.fetchTime,
         };
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(
-                {
-                  error: "Performance analysis failed",
-                  url,
-                  device: device || "desktop",
-                  message: errorMessage,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-          isError: true,
-        };
+
+        if (budget) {
+          const budgetResults: Record<string, { actual: number; budget: number; passed: boolean; unit: string }> = {};
+          let overallPassed = true;
+
+          if (budget.performanceScore !== undefined) {
+            const actual = formattedCategories.performance?.score || 0;
+            const passed = actual >= budget.performanceScore;
+            budgetResults.performanceScore = { actual, budget: budget.performanceScore, passed, unit: "score" };
+            if (!passed) overallPassed = false;
+          }
+
+          for (const { key, metric, unit } of BUDGET_METRIC_MAPPINGS) {
+            const budgetValue = (budget as Record<string, number | undefined>)[key];
+            if (budgetValue !== undefined) {
+              const actual = metrics[metric]?.value || 0;
+              const passed = actual <= budgetValue;
+              budgetResults[key] = { actual, budget: budgetValue, passed, unit };
+              if (!passed) overallPassed = false;
+            }
+          }
+
+          data.budgetResults = budgetResults;
+          data.overallPassed = overallPassed;
+        }
+
+        return successResponse(data, lhr.runWarnings?.length ? lhr.runWarnings : undefined, lhr.runtimeError);
+      } catch (error) {
+        return errorResponse("Performance analysis failed", { url, device: device || "desktop" }, error);
       }
     },
   );
 
   server.registerTool(
-    "get_core_web_vitals",
+    "pharos_core_web_vitals",
     {
-      description: "Get Core Web Vitals metrics for a website",
+      description:
+        "Core Web Vitals (LCP, FCP, CLS, TBT) with optional threshold checking. Reads from cache if pharos_audit ran first. lcp: seconds, inp: ms (TBT as lab proxy), cls: unitless.",
       inputSchema: coreWebVitalsSchema,
+      annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, includeDetails, threshold }) => {
+    async ({ url, device, throttling, forceFresh, includeDetails, threshold }) => {
       try {
-        const result = await getCoreWebVitals(url, device, threshold);
+        const result = await getCoreWebVitals(url, device, threshold, throttling, { forceFresh });
 
-        const structuredResult = createStructuredPerformance(
-          "Core Web Vitals",
-          result.url,
-          result.device,
+        const coreWebVitals: Record<string, { title: string; value: string; score: number | null | undefined }> = {};
+        for (const [key, metric] of Object.entries(result.coreWebVitals)) {
+          coreWebVitals[key] = {
+            title: metric?.title || key.toUpperCase(),
+            value: metric?.displayValue || "N/A",
+            score: metric?.score,
+          };
+        }
+
+        return successResponse(
           {
-            coreWebVitals: Object.fromEntries(
-              Object.entries(result.coreWebVitals).map(([key, metric]) => [
-                key,
-                {
-                  title: metric?.title || key.toUpperCase(),
-                  value: metric?.displayValue || "N/A",
-                  score: metric?.score,
-                },
-              ]),
-            ),
+            url: result.url,
+            device: result.device,
+            coreWebVitals,
+            ...(includeDetails ? { allMetrics: result.allMetrics } : {}),
             thresholdResults: result.thresholdResults || {},
             fetchTime: result.fetchTime,
-            includeDetails,
           },
-          [
-            "Optimize Largest Contentful Paint (LCP) < 2.5s",
-            "Minimize First Input Delay (FID) < 100ms",
-            "Reduce Cumulative Layout Shift (CLS) < 0.1",
-          ],
+          result.warnings?.length ? result.warnings : undefined,
+          result.runtimeError,
         );
-
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(structuredResult, null, 2),
-            },
-          ],
-        };
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(
-                {
-                  error: "Core Web Vitals analysis failed",
-                  url,
-                  device: device || "desktop",
-                  message: errorMessage,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-          isError: true,
-        };
+      } catch (error) {
+        return errorResponse("Core Web Vitals analysis failed", { url, device: device || "desktop" }, error);
       }
     },
   );
 
   server.registerTool(
-    "compare_mobile_desktop",
+    "pharos_compare_devices",
     {
-      description: "Compare website performance between mobile and desktop devices",
+      description:
+        "Compare mobile vs desktop performance. Reads from cache per device if pharos_audit already ran for that device with matching throttling — only runs Lighthouse for uncached devices (10-30s cold per uncached device).",
       inputSchema: compareDevicesSchema,
+      annotations: READ_ONLY_OPEN,
     },
-    async ({ url, categories, throttling, includeDetails }) => {
+    async ({ url, categories, throttling, forceFresh, includeDetails }) => {
       try {
-        const result = await compareMobileDesktop(url, categories, throttling);
+        const result = await compareMobileDesktop(url, categories, throttling, { forceFresh });
 
-        const structuredResult = createStructuredPerformance(
-          "Mobile vs Desktop Comparison",
-          result.url,
-          "mobile + desktop",
+        const differences: Record<string, { mobile: number; desktop: number; difference: number; better: string }> =
+          {};
+        for (const [category, diff] of Object.entries(result.differences)) {
+          differences[category] = {
+            mobile: diff.mobile,
+            desktop: diff.desktop,
+            difference: diff.difference,
+            better: diff.difference > 0 ? "desktop" : "mobile",
+          };
+        }
+
+        return successResponse(
           {
-            differences: Object.fromEntries(
-              Object.entries(result.differences).map(([category, diff]) => [
-                category,
-                {
-                  mobile: diff.mobile,
-                  desktop: diff.desktop,
-                  difference: diff.difference,
-                  better: diff.difference > 0 ? "desktop" : "mobile",
-                },
-              ]),
-            ),
-            includeDetails,
+            url: result.url,
+            differences,
+            ...(includeDetails ? { mobile: result.mobile, desktop: result.desktop } : {}),
           },
-          [
-            "Mobile performance typically requires more optimization",
-            "Focus on image optimization for mobile devices",
-            "Consider implementing responsive design best practices",
-          ],
+          result.warnings?.length ? result.warnings : undefined,
+          result.runtimeError,
         );
-
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(structuredResult, null, 2),
-            },
-          ],
-        };
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(
-                {
-                  error: "Mobile vs Desktop comparison failed",
-                  url,
-                  message: errorMessage,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-          isError: true,
-        };
+      } catch (error) {
+        return errorResponse("Mobile vs Desktop comparison failed", { url }, error);
       }
     },
   );
 
   server.registerTool(
-    "check_performance_budget",
+    "pharos_lcp",
     {
-      description: "Check if website performance meets specified budget thresholds",
-      inputSchema: performanceBudgetSchema,
-    },
-    async ({ url, device, budget }) => {
-      try {
-        const result = await checkPerformanceBudget(url, device, budget);
-
-        const structuredResult = createStructuredPerformance(
-          "Performance Budget Check",
-          result.url,
-          result.device,
-          {
-            overallPassed: result.overallPassed,
-            results: Object.fromEntries(
-              Object.entries(result.results).map(([metric, data]) => [
-                metric,
-                {
-                  actual: data.actual,
-                  budget: data.budget,
-                  unit: data.unit,
-                  passed: data.passed,
-                  difference:
-                    typeof data.actual === "number" && typeof data.budget === "number"
-                      ? data.actual - data.budget
-                      : null,
-                },
-              ]),
-            ),
-            fetchTime: result.fetchTime,
-          },
-          result.overallPassed
-            ? ["Performance budget requirements met"]
-            : [
-                "Review failing metrics and optimize accordingly",
-                "Consider adjusting budget thresholds if realistic",
-                "Focus on the metrics with largest budget overruns",
-              ],
-        );
-
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(structuredResult, null, 2),
-            },
-          ],
-        };
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(
-                {
-                  error: "Performance budget check failed",
-                  url,
-                  device: device || "desktop",
-                  message: errorMessage,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  server.registerTool(
-    "get_lcp_opportunities",
-    {
-      description: "Get LCP optimization opportunities for a website",
+      description: "LCP value and optimization opportunities. Reads from cache if pharos_audit ran first.",
       inputSchema: lcpOpportunitiesSchema,
+      annotations: READ_ONLY_OPEN,
     },
-    async ({ url, device, threshold, includeDetails }) => {
+    async ({ url, device, throttling, forceFresh, threshold, includeDetails }) => {
       try {
-        const result = await getLcpOpportunities(url, device, threshold);
+        const result = await getLcpOpportunities(url, device, threshold, throttling, { forceFresh });
 
-        const structuredResult = createStructuredPerformance(
-          "LCP Optimization Opportunities",
-          result.url,
-          result.device,
+        const opportunities = (result.opportunities || []).map((opp) => {
+          const o = opp as {
+            id: string;
+            title: string;
+            score: number;
+            displayValue?: string;
+            description?: string;
+            numericValue?: number;
+          };
+          const base = { id: o.id, title: o.title, score: o.score, displayValue: o.displayValue };
+          return includeDetails ? { ...base, description: o.description, numericValue: o.numericValue } : base;
+        });
+
+        return successResponse(
           {
+            url: result.url,
+            device: result.device,
             lcpValue: result.lcpValue,
             threshold: result.threshold,
             needsImprovement: result.needsImprovement,
-            opportunities: result.opportunities || [],
+            opportunities,
             fetchTime: result.fetchTime,
-            includeDetails,
           },
-          !result.needsImprovement
-            ? ["LCP performance is within acceptable range"]
-            : [
-                "Optimize image loading and compression",
-                "Implement resource hints (preload, prefetch)",
-                "Reduce server response times",
-                "Minimize render-blocking resources",
-              ],
+          result.warnings?.length ? result.warnings : undefined,
+          result.runtimeError,
         );
-
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(structuredResult, null, 2),
-            },
-          ],
-        };
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(
-                {
-                  error: "LCP opportunities analysis failed",
-                  url,
-                  device: device || "desktop",
-                  message: errorMessage,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-          isError: true,
-        };
+      } catch (error) {
+        return errorResponse("LCP opportunities analysis failed", { url, device: device || "desktop" }, error);
       }
     },
   );

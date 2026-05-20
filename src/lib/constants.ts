@@ -28,7 +28,6 @@ export const KEY_METRICS = [
   "total-blocking-time",
   "cumulative-layout-shift",
   "speed-index",
-  "interactive",
 ] as const;
 
 // LCP optimization opportunities
@@ -43,14 +42,8 @@ export const LCP_OPPORTUNITIES = [
   "uses-text-compression",
 ] as const;
 
-// Security audit IDs
-export const SECURITY_AUDITS = [
-  "is-on-https",
-  "uses-http2",
-  "no-vulnerable-libraries",
-  "csp-xss",
-  "external-anchors-use-rel-noopener",
-] as const;
+// Security audit IDs — audits present in Lighthouse 13 best-practices category
+export const SECURITY_AUDITS = ["is-on-https", "csp-xss"] as const;
 
 // Performance budget metric mappings
 export const BUDGET_METRIC_MAPPINGS = [

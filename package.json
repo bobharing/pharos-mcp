@@ -1,29 +1,26 @@
 {
-  "name": "@danielsogl/lighthouse-mcp",
+  "name": "@bobharing/pharos-mcp",
   "version": "1.5.0",
-  "description": "A comprehensive Model Context Protocol (MCP) server that provides web performance auditing, accessibility testing, SEO analysis, security assessment, and Core Web Vitals monitoring using Google Lighthouse. Enables LLMs and AI agents to perform detailed website analysis with 13+ specialized tools.",
-  "main": "dist/index.js",
+  "description": "A Model Context Protocol (MCP) server that provides web performance auditing, accessibility testing, SEO analysis, security assessment, and Core Web Vitals monitoring using Google Lighthouse. Enables LLMs and AI agents to perform detailed website analysis with 9 specialized tools.",
+  "main": "src/index.ts",
   "bin": {
-    "lighthouse-mcp-server": "dist/index.js"
+    "pharos-mcp": "src/index.ts"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx src/index.ts",
-    "prepare": "is-ci || husky",
-    "prepublishOnly": "npm run build",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun run src/index.ts",
+    "dev": "bun run --watch src/index.ts",
+    "inspect": "bunx @modelcontextprotocol/inspector bun run src/index.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui",
-    "smoke:profile": "tsx scripts/smoke-profile.ts",
-    "release-please": "release-please release-pr --repo-url=https://github.com/danielsogl/lighthouse-mcp-server --package-name=@danielsogl/lighthouse-mcp",
-    "release-please:release": "release-please github-release --repo-url=https://github.com/danielsogl/lighthouse-mcp-server --package-name=@danielsogl/lighthouse-mcp"
+    "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "smoke:profile": "bun run scripts/smoke-profile.ts",
+    "release-please": "release-please release-pr --repo-url=https://github.com/bobharing/pharos-mcp --package-name=@bobharing/pharos-mcp",
+    "release-please:release": "release-please github-release --repo-url=https://github.com/bobharing/pharos-mcp --package-name=@bobharing/pharos-mcp"
   },
   "keywords": [
     "lighthouse",
@@ -44,7 +41,7 @@
     "pwa",
     "progressive-web-app",
     "lcp",
-    "fid",
+    "inp",
     "cls",
     "chrome",
     "ai-agent",
@@ -58,62 +55,42 @@
     "claude-desktop"
   ],
   "author": {
-    "name": "Daniel Sogl",
-    "email": "security@codingrules.ai",
-    "url": "https://github.com/danielsogl"
+    "name": "Bob Haring",
+    "url": "https://github.com/bobharing"
   },
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=20.0.0"
+    "bun": ">=1.1.0"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/danielsogl/lighthouse-mcp-server.git"
+    "url": "git+https://github.com/bobharing/pharos-mcp.git"
   },
-  "homepage": "https://github.com/danielsogl/lighthouse-mcp-server#readme",
+  "homepage": "https://github.com/bobharing/pharos-mcp#readme",
   "bugs": {
-    "url": "https://github.com/danielsogl/lighthouse-mcp-server/issues"
-  },
-  "funding": {
-    "type": "github",
-    "url": "https://github.com/sponsors/danielsogl"
+    "url": "https://github.com/bobharing/pharos-mcp/issues"
   },
   "files": [
     "dist",
     "README.md",
-    "LICENSE",
-    "SECURITY.md"
+    "LICENSE"
   ],
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^8.59.1",
     "@typescript-eslint/parser": "^8.59.1",
-    "@vitest/coverage-v8": "^4.1.5",
-    "@vitest/ui": "^4.1.5",
+    "@types/bun": "latest",
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
-    "globals": "^17.6.0",
-    "husky": "^9.1.7",
-    "is-ci": "^4.1.0",
-    "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
     "release-please": "^17.6.0",
-    "tsx": "^4.21.0",
-    "typescript": "^6.0.2",
-    "typescript-eslint": "^8.59.1",
-    "vitest": "^4.1.5"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
-      "eslint --fix"
-    ]
+    "typescript": "^6.0.2"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "chrome-launcher": "^1.2.1",
-    "lighthouse": "^13.0.3",
+    "lighthouse": "^13.3.0",
     "zod": "^4.4.2"
   }
 }

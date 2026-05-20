@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, mock } from "bun:test";
 import { registerResources } from "./resources";
 
 // Mock the MCP server
 const mockServer = {
-  registerResource: vi.fn(),
+  registerResource: mock(),
 };
 
 describe("resources", () => {
@@ -55,7 +54,7 @@ describe("resources", () => {
     // Verify the JSON is valid and contains expected structure
     const data = JSON.parse(result.contents[0].text);
     expect(data).toHaveProperty("lcp");
-    expect(data).toHaveProperty("fid");
+    expect(data).toHaveProperty("inp");
     expect(data).toHaveProperty("cls");
     expect(data.lcp).toHaveProperty("good");
     expect(data.lcp).toHaveProperty("needsImprovement");

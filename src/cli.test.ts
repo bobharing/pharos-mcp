@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { basename, dirname, join } from "node:path";
 import { parseCliArgs } from "./cli";
 

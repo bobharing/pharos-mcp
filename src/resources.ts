@@ -22,10 +22,11 @@ export function registerResources(server: McpServer) {
                 needsImprovement: { min: 2.5, max: 4.0, unit: "seconds" },
                 poor: { min: 4.0, unit: "seconds" },
               },
-              fid: {
-                good: { max: 100, unit: "milliseconds" },
-                needsImprovement: { min: 100, max: 300, unit: "milliseconds" },
-                poor: { min: 300, unit: "milliseconds" },
+              inp: {
+                good: { max: 200, unit: "milliseconds" },
+                needsImprovement: { min: 200, max: 500, unit: "milliseconds" },
+                poor: { min: 500, unit: "milliseconds" },
+                note: "INP replaced FID as a Core Web Vital in March 2024. In lab testing, TBT is used as a proxy.",
               },
               cls: {
                 good: { max: 0.1, unit: "score" },
@@ -423,11 +424,11 @@ export function registerResources(server: McpServer) {
           {
             ecommerce: {
               description: "Online stores and retail websites",
-              priorities: ["LCP", "CLS", "FID"],
+              priorities: ["LCP", "CLS", "INP"],
               budgets: {
                 lcp: { target: 2.0, warning: 2.5, critical: 4.0 },
                 cls: { target: 0.05, warning: 0.1, critical: 0.25 },
-                fid: { target: 50, warning: 100, critical: 300 },
+                inp: { target: 200, warning: 500, critical: 1000, unit: "milliseconds" },
                 totalPageSize: { target: 1000, warning: 1500, critical: 2000, unit: "KB" },
                 javascriptSize: { target: 300, warning: 500, critical: 800, unit: "KB" },
               },
@@ -445,9 +446,9 @@ export function registerResources(server: McpServer) {
             },
             application: {
               description: "Web applications and SaaS platforms",
-              priorities: ["FID", "TBT", "CLS"],
+              priorities: ["INP", "TBT", "CLS"],
               budgets: {
-                fid: { target: 50, warning: 100, critical: 300 },
+                inp: { target: 200, warning: 500, critical: 1000, unit: "milliseconds" },
                 tbt: { target: 150, warning: 300, critical: 600 },
                 cls: { target: 0.05, warning: 0.1, critical: 0.25 },
                 javascriptSize: { target: 500, warning: 800, critical: 1200, unit: "KB" },
@@ -456,10 +457,10 @@ export function registerResources(server: McpServer) {
             },
             mobile: {
               description: "Mobile-first or mobile-only experiences",
-              priorities: ["LCP", "FID", "CLS"],
+              priorities: ["LCP", "INP", "CLS"],
               budgets: {
                 lcp: { target: 2.0, warning: 2.5, critical: 4.0 },
-                fid: { target: 50, warning: 100, critical: 300 },
+                inp: { target: 200, warning: 500, critical: 1000, unit: "milliseconds" },
                 cls: { target: 0.05, warning: 0.1, critical: 0.25 },
                 totalPageSize: { target: 500, warning: 800, critical: 1200, unit: "KB" },
                 imageSize: { target: 200, warning: 400, critical: 600, unit: "KB" },

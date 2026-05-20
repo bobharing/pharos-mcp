@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, mock } from "bun:test";
 import { registerSecurityTools } from "./security";
 
 // Mock the MCP server
 const mockServer = {
-  registerTool: vi.fn(),
+  registerTool: mock(),
 };
 
 describe("tools/security", () => {
@@ -14,10 +13,10 @@ describe("tools/security", () => {
     }).not.toThrow();
 
     // Verify that tools were registered
-    expect(mockServer.registerTool).toHaveBeenCalledTimes(1); // get_security_audit
+    expect(mockServer.registerTool).toHaveBeenCalledTimes(1); // pharos_security
 
     // Verify tool names
     const toolCalls = mockServer.registerTool.mock.calls;
-    expect(toolCalls[0][0]).toBe("get_security_audit");
+    expect(toolCalls[0][0]).toBe("pharos_security");
   });
 });

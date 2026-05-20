@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import {
   getScreenEmulation,
   buildLighthouseOptions,
   filterAuditsByCategory,
   formatCategoryScores,
   extractKeyMetrics,
-} from "./lighthouse-core";
-import { SCREEN_DIMENSIONS } from "./lighthouse-constants";
+} from "./lib/lighthouse";
+import { SCREEN_DIMENSIONS } from "./lib/constants";
 
 describe("lighthouse-core utilities", () => {
   describe("getScreenEmulation", () => {
@@ -44,7 +44,7 @@ describe("lighthouse-core utilities", () => {
       const options = buildLighthouseOptions(port, device);
 
       expect(options).toMatchObject({
-        logLevel: "info",
+        logLevel: "error",
         output: "json",
         port: 9222,
         formFactor: "desktop",
@@ -139,14 +139,40 @@ describe("lighthouse-core utilities", () => {
       expect(result[0]).toMatchObject({
         id: "first-contentful-paint",
         title: "First Contentful Paint",
-        description: "FCP description",
         score: 0.9,
       });
+      expect(result[0]).not.toHaveProperty("description");
       expect(result[1]).toMatchObject({
         id: "largest-contentful-paint",
         title: "Largest Contentful Paint",
-        description: "LCP description",
         score: 0.8,
+      });
+      expect(result[1]).not.toHaveProperty("description");
+    });
+
+    it("should include descriptions when includeDescriptions is true", () => {
+      const mockLhr = {
+        audits: {
+          "first-contentful-paint": {
+            title: "First Contentful Paint",
+            description: "FCP description",
+            score: 0.9,
+            scoreDisplayMode: "numeric",
+            displayValue: "1.2 s",
+          },
+        },
+        categories: {
+          performance: {
+            auditRefs: [{ id: "first-contentful-paint" }],
+          },
+        },
+      } as any;
+
+      const result = filterAuditsByCategory(mockLhr, "performance", true);
+
+      expect(result[0]).toMatchObject({
+        id: "first-contentful-paint",
+        description: "FCP description",
       });
     });
 
@@ -361,6 +387,106 @@ describe("lighthouse-core utilities", () => {
       const result = filterAuditsByCategory(mockLhr, "missing-category");
 
       expect(result).toEqual([]);
+    });
+
+    it("should include frameworkTip when stackPacks match an audit and includeDescriptions is true", () => {
+      const mockLhr = {
+        audits: {
+          "render-blocking-resources": {
+            title: "Render-Blocking Resources",
+            description: "Generic description",
+            score: 0.5,
+            scoreDisplayMode: "numeric",
+            displayValue: "2 resources",
+          },
+        },
+        categories: {
+          performance: {
+            auditRefs: [{ id: "render-blocking-resources" }],
+          },
+        },
+      } as any;
+
+      const stackPacks = [
+        {
+          id: "react",
+          title: "React",
+          descriptions: {
+            "render-blocking-resources": "Use React.lazy() to code-split this bundle.",
+          },
+        },
+      ];
+
+      const result = filterAuditsByCategory(mockLhr, "performance", true, stackPacks);
+
+      expect(result[0]).toMatchObject({
+        id: "render-blocking-resources",
+        description: "Generic description",
+        frameworkTip: "Use React.lazy() to code-split this bundle.",
+      });
+    });
+
+    it("should not include frameworkTip when includeDescriptions is false", () => {
+      const mockLhr = {
+        audits: {
+          "render-blocking-resources": {
+            title: "Render-Blocking Resources",
+            description: "Generic description",
+            score: 0.5,
+            scoreDisplayMode: "numeric",
+            displayValue: "2 resources",
+          },
+        },
+        categories: {
+          performance: {
+            auditRefs: [{ id: "render-blocking-resources" }],
+          },
+        },
+      } as any;
+
+      const stackPacks = [
+        {
+          id: "react",
+          title: "React",
+          descriptions: { "render-blocking-resources": "Use React.lazy()" },
+        },
+      ];
+
+      const result = filterAuditsByCategory(mockLhr, "performance", false, stackPacks);
+
+      expect(result[0]).not.toHaveProperty("frameworkTip");
+      expect(result[0]).not.toHaveProperty("description");
+    });
+
+    it("should not include frameworkTip when audit has no matching stack pack entry", () => {
+      const mockLhr = {
+        audits: {
+          "first-contentful-paint": {
+            title: "FCP",
+            description: "FCP description",
+            score: 0.9,
+            scoreDisplayMode: "numeric",
+            displayValue: "1.2 s",
+          },
+        },
+        categories: {
+          performance: {
+            auditRefs: [{ id: "first-contentful-paint" }],
+          },
+        },
+      } as any;
+
+      const stackPacks = [
+        {
+          id: "react",
+          title: "React",
+          descriptions: { "render-blocking-resources": "React tip" }, // no match for fcp
+        },
+      ];
+
+      const result = filterAuditsByCategory(mockLhr, "performance", true, stackPacks);
+
+      expect(result[0]).not.toHaveProperty("frameworkTip");
     });
   });
 });

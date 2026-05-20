@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "bun-doc-mcp": {
+      "type": "stdio",
+      "command": "bunx",
+      "args": ["bun-doc-mcp"]
+    }
+  },
+  "inputs": []
+}

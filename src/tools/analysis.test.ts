@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, mock } from "bun:test";
 import { registerAnalysisTools } from "./analysis";
 
 // Mock the MCP server
 const mockServer = {
-  registerTool: vi.fn(),
+  registerTool: mock(),
 };
 
 describe("tools/analysis", () => {
@@ -14,11 +13,12 @@ describe("tools/analysis", () => {
     }).not.toThrow();
 
     // Verify that tools were registered
-    expect(mockServer.registerTool).toHaveBeenCalledTimes(2); // find_unused_javascript, analyze_resources
+    expect(mockServer.registerTool).toHaveBeenCalledTimes(3); // pharos_unused_js, pharos_resources, pharos_third_parties
 
     // Verify tool names
     const toolCalls = mockServer.registerTool.mock.calls;
-    expect(toolCalls[0][0]).toBe("find_unused_javascript");
-    expect(toolCalls[1][0]).toBe("analyze_resources");
+    expect(toolCalls[0][0]).toBe("pharos_unused_js");
+    expect(toolCalls[1][0]).toBe("pharos_resources");
+    expect(toolCalls[2][0]).toBe("pharos_third_parties");
   });
 });

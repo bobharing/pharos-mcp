@@ -1,5 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { baseSchemas, coreWebVitalsSchema, performanceBudgetSchema } from "./schemas";
+import { describe, it, expect } from "bun:test";
+import {
+  baseSchemas,
+  coreWebVitalsSchema,
+  performanceSchema,
+  resourceAnalysisSchema,
+  unusedJavaScriptSchema,
+  lcpOpportunitiesSchema,
+  securityAuditSchema,
+} from "./schemas";
 
 describe("baseSchemas", () => {
   describe("url validator", () => {
@@ -72,7 +80,7 @@ describe("baseSchemas", () => {
 
   describe("categories validator", () => {
     it("should accept valid categories", () => {
-      const validCategories = ["performance", "accessibility", "best-practices", "seo", "pwa"];
+      const validCategories = ["performance", "accessibility", "best-practices", "seo"];
       const result = baseSchemas.categories.safeParse(validCategories);
       expect(result.success).toBe(true);
     });
@@ -97,7 +105,7 @@ describe("coreWebVitalsSchema", () => {
       includeDetails: true,
       threshold: {
         lcp: 2.5,
-        fid: 100,
+        inp: 100,
         cls: 0.1,
       },
     };
@@ -111,7 +119,7 @@ describe("coreWebVitalsSchema", () => {
 
     const validThreshold = {
       lcp: 2.5,
-      fid: 100,
+      inp: 100,
       cls: 0.1,
     };
 
@@ -131,44 +139,71 @@ describe("coreWebVitalsSchema", () => {
   });
 });
 
-describe("performanceBudgetSchema", () => {
-  it("should validate performance budget correctly", () => {
-    const validBudget = {
-      url: "https://example.com",
-      device: "desktop" as const,
-      budget: {
-        performanceScore: 90,
-        firstContentfulPaint: 1500,
-        largestContentfulPaint: 2500,
-        totalBlockingTime: 200,
-        cumulativeLayoutShift: 0.1,
-        speedIndex: 3000,
-      },
-    };
+describe("throttling in downstream schemas", () => {
+  it("performanceSchema accepts throttling and defaults to false", () => {
+    const withThrottling = performanceSchema.safeParse({ url: "https://example.com", throttling: true });
+    expect(withThrottling.success).toBe(true);
+    if (withThrottling.success) expect(withThrottling.data.throttling).toBe(true);
 
-    const urlResult = performanceBudgetSchema.shape.url.safeParse(validBudget.url);
-    expect(urlResult.success).toBe(true);
-
-    const budgetResult = performanceBudgetSchema.shape.budget.safeParse(validBudget.budget);
-    expect(budgetResult.success).toBe(true);
+    const withoutThrottling = performanceSchema.safeParse({ url: "https://example.com" });
+    expect(withoutThrottling.success).toBe(true);
+    if (withoutThrottling.success) expect(withoutThrottling.data.throttling).toBe(false);
   });
 
-  it("should reject performance score outside 0-100 range", () => {
-    const invalidBudget = {
-      performanceScore: 150,
-    };
+  it("coreWebVitalsSchema accepts throttling and defaults to false", () => {
+    const withThrottling = coreWebVitalsSchema.safeParse({ url: "https://example.com", throttling: true });
+    expect(withThrottling.success).toBe(true);
+    if (withThrottling.success) expect(withThrottling.data.throttling).toBe(true);
 
-    const result = performanceBudgetSchema.shape.budget.safeParse(invalidBudget);
-    expect(result.success).toBe(false);
+    const withoutThrottling = coreWebVitalsSchema.safeParse({ url: "https://example.com" });
+    expect(withoutThrottling.success).toBe(true);
+    if (withoutThrottling.success) expect(withoutThrottling.data.throttling).toBe(false);
   });
 
-  it("should reject negative metric values", () => {
-    const invalidBudget = {
-      performanceScore: 90,
-      firstContentfulPaint: -100,
-    };
+  it("resourceAnalysisSchema accepts throttling and defaults to false", () => {
+    const withThrottling = resourceAnalysisSchema.safeParse({ url: "https://example.com", throttling: true });
+    expect(withThrottling.success).toBe(true);
+    if (withThrottling.success) expect(withThrottling.data.throttling).toBe(true);
 
-    const result = performanceBudgetSchema.shape.budget.safeParse(invalidBudget);
-    expect(result.success).toBe(false);
+    const withoutThrottling = resourceAnalysisSchema.safeParse({ url: "https://example.com" });
+    expect(withoutThrottling.success).toBe(true);
+    if (withoutThrottling.success) expect(withoutThrottling.data.throttling).toBe(false);
+  });
+
+  it("unusedJavaScriptSchema accepts throttling and defaults to false", () => {
+    const withThrottling = unusedJavaScriptSchema.safeParse({ url: "https://example.com", throttling: true });
+    expect(withThrottling.success).toBe(true);
+    if (withThrottling.success) expect(withThrottling.data.throttling).toBe(true);
+
+    const withoutThrottling = unusedJavaScriptSchema.safeParse({ url: "https://example.com" });
+    expect(withoutThrottling.success).toBe(true);
+    if (withoutThrottling.success) expect(withoutThrottling.data.throttling).toBe(false);
+  });
+
+  it("lcpOpportunitiesSchema accepts throttling and defaults to false", () => {
+    const withThrottling = lcpOpportunitiesSchema.safeParse({ url: "https://example.com", throttling: true });
+    expect(withThrottling.success).toBe(true);
+    if (withThrottling.success) expect(withThrottling.data.throttling).toBe(true);
+
+    const withoutThrottling = lcpOpportunitiesSchema.safeParse({ url: "https://example.com" });
+    expect(withoutThrottling.success).toBe(true);
+    if (withoutThrottling.success) expect(withoutThrottling.data.throttling).toBe(false);
+  });
+
+  it("securityAuditSchema accepts device and throttling, defaults to desktop and false", () => {
+    const withBoth = securityAuditSchema.safeParse({ url: "https://example.com", device: "mobile", throttling: true });
+    expect(withBoth.success).toBe(true);
+    if (withBoth.success) {
+      expect(withBoth.data.device).toBe("mobile");
+      expect(withBoth.data.throttling).toBe(true);
+    }
+
+    const withDefaults = securityAuditSchema.safeParse({ url: "https://example.com" });
+    expect(withDefaults.success).toBe(true);
+    if (withDefaults.success) {
+      expect(withDefaults.data.device).toBe("desktop");
+      expect(withDefaults.data.throttling).toBe(false);
+    }
   });
 });
+

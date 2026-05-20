@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import {
   CHROME_FLAGS,
   SCREEN_DIMENSIONS,
@@ -8,7 +8,7 @@ import {
   SECURITY_AUDITS,
   BUDGET_METRIC_MAPPINGS,
   DEFAULTS,
-} from "./lighthouse-constants";
+} from "./lib/constants";
 
 describe("lighthouse-constants", () => {
   describe("CHROME_FLAGS", () => {
@@ -74,7 +74,6 @@ describe("lighthouse-constants", () => {
         "total-blocking-time",
         "cumulative-layout-shift",
         "speed-index",
-        "interactive",
       ];
 
       expectedMetrics.forEach((metric) => {
@@ -108,16 +107,17 @@ describe("lighthouse-constants", () => {
 
   describe("SECURITY_AUDITS", () => {
     it("should contain expected security audit IDs", () => {
-      const expectedAudits = [
-        "is-on-https",
-        "uses-http2",
-        "no-vulnerable-libraries",
-        "csp-xss",
-        "external-anchors-use-rel-noopener",
-      ];
+      const expectedAudits = ["is-on-https", "csp-xss"];
 
       expectedAudits.forEach((audit) => {
         expect(SECURITY_AUDITS).toContain(audit);
+      });
+    });
+
+    it("should not contain removed Lighthouse 13 audits", () => {
+      const removedAudits = ["uses-http2", "no-vulnerable-libraries", "external-anchors-use-rel-noopener"];
+      removedAudits.forEach((audit) => {
+        expect(SECURITY_AUDITS).not.toContain(audit);
       });
     });
   });
