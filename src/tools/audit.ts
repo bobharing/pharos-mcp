@@ -14,7 +14,7 @@ export function registerAuditTools(server: McpServer) {
     "pharos_audit",
     {
       description:
-        "Run first: warms the full cache so all other pharos_* tools are instant (pass the same device + throttling values). Returns all category scores and key metrics. Use focusCategory or includeDetails for per-audit breakdowns. Add includeDescriptions for audit explanation text (verbose).",
+        "Run first: runs one Lighthouse audit and stores the full result. All other pharos_* tools for the same URL read from that cache — no new Lighthouse run. Cache is keyed by URL + device + throttling; other tools must use the same device and throttling values to get a cache hit. Returns all category scores and key metrics. Use focusCategory or includeDetails for per-audit breakdowns. Add includeDescriptions for audit explanation text (verbose).",
       inputSchema: auditParamsSchema,
       annotations: READ_ONLY_OPEN,
     },

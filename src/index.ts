@@ -25,7 +25,7 @@ function createServer(): McpServer {
     {
       instructions: `Pharos: Lighthouse-powered web auditing. Results cached 10 min per URL/device/throttling (cold audits: 5-15s).
 
-CACHE STRATEGY: pharos_audit warms the full cache — all subsequent tools for the same URL/device are instant. Always call pharos_audit first unless you only need one specific check.
+CACHE STRATEGY: pharos_audit runs one Lighthouse audit and stores the full result. All subsequent tools for the same URL/device/throttling read from that stored result — no new Lighthouse run. Cache misses occur if device or throttling differs from the cached run. Always call pharos_audit first unless you only need one specific check.
 
 WORKFLOW:
 1. pharos_audit — warms cache + returns all category scores (start here)

@@ -11,7 +11,7 @@ export function registerPerformanceTools(server: McpServer) {
     "pharos_performance",
     {
       description:
-        "Performance score and metrics. Instant if pharos_audit already ran for this URL. Optionally validate against a budget.",
+        "Performance score and metrics. Reads from cache if pharos_audit ran first. Optionally validate against a budget.",
       inputSchema: performanceSchema,
       annotations: READ_ONLY_OPEN,
     },
@@ -70,7 +70,7 @@ export function registerPerformanceTools(server: McpServer) {
     "pharos_core_web_vitals",
     {
       description:
-        "Core Web Vitals (LCP, FCP, CLS, TBT) with optional threshold checking. Instant if pharos_audit already ran. lcp: seconds, inp: ms (TBT as lab proxy), cls: unitless.",
+        "Core Web Vitals (LCP, FCP, CLS, TBT) with optional threshold checking. Reads from cache if pharos_audit ran first. lcp: seconds, inp: ms (TBT as lab proxy), cls: unitless.",
       inputSchema: coreWebVitalsSchema,
       annotations: READ_ONLY_OPEN,
     },
@@ -109,7 +109,7 @@ export function registerPerformanceTools(server: McpServer) {
     "pharos_compare_devices",
     {
       description:
-        "Compare mobile vs desktop performance. Runs both devices sequentially (10-30s cold); instant per device if already cached from pharos_audit.",
+        "Compare mobile vs desktop performance. Reads from cache per device if pharos_audit already ran for that device with matching throttling — only runs Lighthouse for uncached devices (10-30s cold per uncached device).",
       inputSchema: compareDevicesSchema,
       annotations: READ_ONLY_OPEN,
     },
@@ -146,7 +146,7 @@ export function registerPerformanceTools(server: McpServer) {
   server.registerTool(
     "pharos_lcp",
     {
-      description: "LCP value and optimization opportunities. Instant if pharos_audit already ran for this URL.",
+      description: "LCP value and optimization opportunities. Reads from cache if pharos_audit ran first.",
       inputSchema: lcpOpportunitiesSchema,
       annotations: READ_ONLY_OPEN,
     },

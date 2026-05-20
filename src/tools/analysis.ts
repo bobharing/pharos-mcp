@@ -8,7 +8,7 @@ export function registerAnalysisTools(server: McpServer) {
   server.registerTool(
     "pharos_unused_js",
     {
-      description: "Find unused JavaScript code that can be removed to reduce bundle size.",
+      description: "Find unused JavaScript code that can be removed to reduce bundle size. Reads from cache if pharos_audit ran first.",
       inputSchema: unusedJavaScriptSchema,
       annotations: READ_ONLY_OPEN,
     },
@@ -48,7 +48,7 @@ export function registerAnalysisTools(server: McpServer) {
     "pharos_resources",
     {
       description:
-        "Page resource breakdown (images, JS, CSS, fonts) by type and size. Instant if pharos_audit already ran for this URL.",
+        "Page resource breakdown (images, JS, CSS, fonts) by type and size. Reads from cache if pharos_audit ran first.",
       inputSchema: resourceAnalysisSchema,
       annotations: READ_ONLY_OPEN,
     },
@@ -109,7 +109,7 @@ export function registerAnalysisTools(server: McpServer) {
     "pharos_third_parties",
     {
       description:
-        "Third-party breakdown by entity (analytics, ads, social, etc.) with byte and blocking-time impact. Instant if pharos_audit already ran.",
+        "Third-party breakdown by entity (analytics, ads, social, etc.) with byte and blocking-time impact. Reads from cache if pharos_audit ran first.",
       inputSchema: thirdPartySchema,
       annotations: READ_ONLY_OPEN,
     },
